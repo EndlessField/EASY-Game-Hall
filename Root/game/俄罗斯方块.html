@@ -1,0 +1,1062 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>俄罗斯方块 - 经典益智游戏</title>
+    <link rel="stylesheet" href="lib/fontawesome-free-7.3.1-web/css/all.min.css">
+    <style>
+        :root {
+            --bg-primary: #1a1a2e;
+            --bg-secondary: #16213e;
+            --bg-tertiary: #0f3460;
+            --text-primary: #ffffff;
+            --text-secondary: #a0d2ff;
+            --accent-primary: #3498db;
+            --accent-success: #2ecc71;
+            --accent-warning: #f1c40f;
+            --accent-danger: #e74c3c;
+            --grid-color: rgba(255,255,255,0.1);
+            --shadow-color: rgba(0,0,0,0.5);
+            --border-radius: 12px;
+            --transition: all 0.3s ease;
+        }
+
+        [data-theme="light"] {
+            --bg-primary: #f0f4f8;
+            --bg-secondary: #e2e8f0;
+            --bg-tertiary: #cbd5e1;
+            --text-primary: #1e293b;
+            --text-secondary: #475569;
+            --accent-primary: #3b82f6;
+            --accent-success: #10b981;
+            --accent-warning: #f59e0b;
+            --accent-danger: #ef4444;
+            --grid-color: rgba(0,0,0,0.1);
+            --shadow-color: rgba(0,0,0,0.1);
+        }
+
+        [data-theme="retro"] {
+            --bg-primary: #000000;
+            --bg-secondary: #1a1a1a;
+            --bg-tertiary: #333333;
+            --text-primary: #00ff00;
+            --text-secondary: #00cc00;
+            --accent-primary: #00ff00;
+            --accent-success: #00ff00;
+            --accent-warning: #ffff00;
+            --accent-danger: #ff0000;
+            --grid-color: rgba(0,255,0,0.2);
+            --shadow-color: rgba(0,255,0,0.3);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            -webkit-user-select: none;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+        
+        body {
+            background: linear-gradient(135deg, var(--bg-primary), var(--bg-secondary), var(--bg-tertiary));
+            color: var(--text-primary);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+            overflow-x: hidden;
+            touch-action: pan-x pan-y;
+            transition: var(--transition);
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+            width: 100%;
+            max-width: 800px;
+        }
+        
+        .header h1 {
+            font-size: 3.5rem;
+            margin-bottom: 10px;
+            text-shadow: 0 0 15px var(--accent-primary);
+            background: linear-gradient(to right, var(--accent-primary), var(--accent-success));
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: 2px;
+        }
+        
+        .header p {
+            font-size: 1.2rem;
+            color: var(--text-secondary);
+            max-width: 600px;
+            margin: 0 auto;
+            line-height: 1.6;
+        }
+
+        .theme-switcher {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(0,0,0,0.3);
+            padding: 10px;
+            border-radius: var(--border-radius);
+            display: flex;
+            gap: 10px;
+            z-index: 10;
+        }
+
+        .theme-btn {
+            width: 40px;
+            height: 40px;
+            border: 2px solid var(--accent-primary);
+            border-radius: 50%;
+            cursor: pointer;
+            transition: var(--transition);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-primary);
+            background: transparent;
+            font-size: 1.2rem;
+        }
+
+        .theme-btn:hover {
+            transform: scale(1.1);
+        }
+
+        .theme-btn.active {
+            background: var(--accent-primary);
+            color: white;
+        }
+        
+        .game-container {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 25px;
+            max-width: 1200px;
+            width: 100%;
+        }
+        
+        .game-board {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        
+        #score {
+            font-size: 2.8rem;
+            margin: 15px 0;
+            font-weight: bold;
+            text-shadow: 2px 2px 8px var(--shadow-color);
+            padding: 15px 30px;
+            background: rgba(0, 0, 0, 0.4);
+            border-radius: var(--border-radius);
+            border: 2px solid var(--accent-primary);
+            transition: var(--transition);
+            min-width: 250px;
+            text-align: center;
+            box-shadow: 0 5px 15px var(--shadow-color);
+        }
+        
+        canvas {
+            border: 3px solid var(--bg-secondary);
+            border-radius: var(--border-radius);
+            box-shadow: 0 10px 30px var(--shadow-color);
+            background: rgba(0, 0, 0, 0.2);
+            image-rendering: crisp-edges;
+            image-rendering: -webkit-optimize-contrast;
+            image-rendering: pixelated;
+        }
+        
+        #game {
+            width: 300px;
+            height: 600px;
+        }
+
+        .next-queue {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .next-canvas {
+            width: 80px;
+            height: 80px;
+            border: 2px solid var(--accent-primary);
+            border-radius: 8px;
+            background: rgba(0,0,0,0.2);
+        }
+        
+        .side-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 25px;
+            min-width: 260px;
+        }
+        
+        .panel {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: var(--border-radius);
+            padding: 20px;
+            box-shadow: 0 8px 25px var(--shadow-color);
+            border: 1px solid var(--accent-primary);
+            -webkit-backdrop-filter: blur(8px);
+            backdrop-filter: blur(8px);
+            transition: var(--transition);
+        }
+        
+        .panel h3 {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 15px;
+            color: var(--accent-primary);
+            font-size: 1.5rem;
+        }
+        
+        .panel h3 i {
+            font-size: 1.3rem;
+        }
+
+        .combo-display {
+            font-size: 2rem;
+            font-weight: bold;
+            color: var(--accent-warning);
+            text-align: center;
+            margin: 10px 0;
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-shadow: 0 0 10px var(--accent-warning);
+        }
+
+        .tspin-indicator {
+            color: var(--accent-danger);
+            font-size: 1.2rem;
+            text-align: center;
+            margin: 5px 0;
+            height: 30px;
+            font-weight: bold;
+        }
+        
+        .controls {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            margin: 25px 0;
+        }
+        
+        .control-btn {
+            width: 75px;
+            height: 75px;
+            background: linear-gradient(145deg, var(--accent-primary), #2980b9);
+            border: none;
+            border-radius: 50%;
+            color: white;
+            font-size: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.15s;
+            box-shadow: 0 6px 12px var(--shadow-color);
+            touch-action: manipulation;
+        }
+        
+        .control-btn:active {
+            transform: scale(0.92);
+            box-shadow: 0 2px 6px var(--shadow-color);
+        }
+        
+        #up { grid-column: 2; }
+        #left { grid-column: 1; }
+        #down { grid-column: 2; grid-row: 2; }
+        #right { grid-column: 3; grid-row: 2; }
+        
+        .game-overlay {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.95);
+            padding: 40px 50px;
+            border-radius: var(--border-radius);
+            text-align: center;
+            display: none;
+            z-index: 1000;
+            box-shadow: 0 15px 50px var(--shadow-color);
+            border: 2px solid var(--accent-primary);
+            width: 90%;
+            max-width: 500px;
+        }
+        
+        .game-overlay h2 {
+            font-size: 2.5rem;
+            margin-bottom: 20px;
+            color: var(--accent-danger);
+            text-shadow: 0 0 10px var(--accent-danger);
+        }
+        
+        .game-overlay p {
+            font-size: 1.8rem;
+            margin: 20px 0;
+        }
+        
+        .game-overlay input {
+            font-size: 1.2rem;
+            padding: 15px;
+            margin: 20px 0;
+            width: 100%;
+            border-radius: 30px;
+            border: 2px solid var(--accent-primary);
+            background: rgba(255, 255, 255, 0.1);
+            color: var(--text-primary);
+            text-align: center;
+        }
+        
+        .game-overlay input:focus {
+            outline: none;
+            border-color: var(--accent-success);
+            box-shadow: 0 0 15px var(--accent-success);
+        }
+        
+        .btn {
+            background: linear-gradient(145deg, var(--accent-success), #27ae60);
+            border: none;
+            padding: 15px 30px;
+            border-radius: 30px;
+            color: white;
+            font-size: 1.2rem;
+            cursor: pointer;
+            transition: var(--transition);
+            margin: 10px;
+            min-width: 160px;
+            box-shadow: 0 5px 15px var(--shadow-color);
+        }
+        
+        .btn:hover { transform: translateY(-3px); box-shadow: 0 8px 20px var(--shadow-color); }
+        .btn:active { transform: translateY(1px); }
+        .btn-danger { background: linear-gradient(145deg, var(--accent-danger), #c0392b); }
+        .btn-secondary { background: linear-gradient(145deg, var(--accent-primary), #2980b9); }
+        
+        #rankingList {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        
+        #rankingList li {
+            display: flex;
+            justify-content: space-between;
+            padding: 12px 15px;
+            margin: 10px 0;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+            font-size: 1.1rem;
+            transition: var(--transition);
+        }
+        
+        #rankingList li:hover { background: rgba(52, 152, 219, 0.2); transform: translateX(5px); }
+        #rankingList li span:first-child { font-weight: bold; color: var(--accent-primary); }
+        #rankingList li span:last-child { font-weight: bold; color: var(--accent-success); }
+        
+        .ranking-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        
+        .clear-btn {
+            background: rgba(231, 76, 60, 0.2);
+            border: 1px solid var(--accent-danger);
+            color: var(--accent-danger);
+            padding: 8px 15px;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: var(--transition);
+            font-size: 0.9rem;
+        }
+        
+        .clear-btn:hover { background: rgba(231, 76, 60, 0.3); }
+        
+        .level-indicator {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-top: 15px;
+            font-size: 1.2rem;
+        }
+        
+        .level-bar {
+            height: 10px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 5px;
+            flex: 1;
+            overflow: hidden;
+        }
+        
+        .level-progress {
+            height: 100%;
+            background: linear-gradient(to right, var(--accent-primary), var(--accent-success));
+            border-radius: 5px;
+            width: 0%;
+            transition: width 0.5s;
+        }
+        
+        .game-stats {
+            display: flex;
+            justify-content: space-around;
+            margin-top: 20px;
+            text-align: center;
+        }
+        
+        .stat {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 15px;
+            border-radius: 10px;
+            min-width: 100px;
+            transition: var(--transition);
+        }
+        
+        .stat-value {
+            font-size: 2rem;
+            font-weight: bold;
+            color: var(--accent-success);
+            margin: 5px 0;
+        }
+        
+        .stat-label {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+        }
+        
+        .pc-controls {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 15px 25px;
+            border-radius: 30px;
+            font-size: 1rem;
+            margin-top: 20px;
+            text-align: center;
+            max-width: 600px;
+            border: 1px solid var(--accent-primary);
+        }
+
+        @keyframes comboPulse {
+            0% { transform: scale(1); text-shadow: 0 0 10px var(--accent-warning); }
+            50% { transform: scale(1.2); text-shadow: 0 0 20px var(--accent-warning); }
+            100% { transform: scale(1); text-shadow: 0 0 10px var(--accent-warning); }
+        }
+
+        .combo-active { animation: comboPulse 0.5s ease-in-out; }
+        
+        @keyframes tspinPulse {
+            0% { opacity: 0; transform: scale(0.8); }
+            50% { opacity: 1; transform: scale(1.2); }
+            100% { opacity: 0; transform: scale(0.8); }
+        }
+        .tspin-active { animation: tspinPulse 0.5s ease-in-out 2; }
+        
+        @media (max-width: 900px) {
+            .game-container { flex-direction: column; align-items: center; }
+            .side-panel { width: 100%; max-width: 500px; flex-direction: row; flex-wrap: wrap; justify-content: center; }
+            .panel { flex: 1; min-width: 250px; }
+            .header h1 { font-size: 2.8rem; }
+            .theme-switcher { position: static; margin-bottom: 15px; justify-content: center; }
+        }
+        
+        @media (max-width: 600px) {
+            .controls { gap: 10px; }
+            .control-btn { width: 65px; height: 65px; font-size: 26px; }
+            .header h1 { font-size: 2.2rem; }
+            #score { font-size: 2rem; padding: 12px 20px; }
+            .btn { padding: 12px 20px; font-size: 1rem; min-width: 130px; }
+            .next-canvas { width: 70px; height: 70px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="theme-switcher">
+        <button type="button" class="theme-btn active" data-theme="dark" aria-label="暗色主题"><i class="fas fa-moon"></i></button>
+        <button type="button" class="theme-btn" data-theme="light" aria-label="亮色主题"><i class="fas fa-sun"></i></button>
+        <button type="button" class="theme-btn" data-theme="retro" aria-label="复古主题"><i class="fas fa-gamepad"></i></button>
+    </div>
+
+    <div class="header">
+        <h1><i class="fas fa-gamepad"></i> 俄罗斯方块</h1>
+        <p>经典益智游戏 - 移动、旋转方块，填满整行来消除并获得高分！</p>
+        <p>由Printf("%s","Hello world.")利用AI技术开发。</p>
+    </div>
+    
+    <div class="game-container">
+        <div class="game-board">
+            <div id="score">得分: 0</div>
+            <canvas id="game" width="300" height="600"></canvas>
+            
+            <div class="controls">
+                <div></div>
+                <button type="button" class="control-btn" id="up" aria-label="旋转"><i class="fas fa-arrow-up"></i></button>
+                <div></div>
+                <button type="button" class="control-btn" id="left" aria-label="向左移动"><i class="fas fa-arrow-left"></i></button>
+                <button type="button" class="control-btn" id="down" aria-label="向下移动"><i class="fas fa-arrow-down"></i></button>
+                <button type="button" class="control-btn" id="right" aria-label="向右移动"><i class="fas fa-arrow-right"></i></button>
+            </div>
+            
+            <div class="pc-controls">
+                <strong>键盘控制：</strong> 
+                ← → 移动 | ↓ 软降 | ↑ 旋转 | Shift 硬降 | P 暂停/继续 | R 重新开始
+            </div>
+        </div>
+        
+        <div class="side-panel">
+            <div class="panel">
+                <h3><i class="fas fa-cube"></i> 预览队列</h3>
+                <div class="next-queue" id="nextQueue"></div>
+                <div class="tspin-indicator" id="tspinIndicator"></div>
+                <div class="combo-display" id="comboDisplay"></div>
+                <div class="level-indicator">
+                    <span>等级:</span>
+                    <div class="level-bar"><div class="level-progress" id="levelProgress"></div></div>
+                    <span id="level">1</span>
+                </div>
+            </div>
+            
+            <div class="panel">
+                <div class="ranking-header">
+                    <h3><i class="fas fa-trophy"></i> 排行榜</h3>
+                    <button type="button" class="clear-btn" onclick="if(window.game) game.clearRanking()" aria-label="清空排行榜">清空</button>
+                </div>
+                <ol id="rankingList"></ol>
+            </div>
+            
+            <div class="panel">
+                <h3><i class="fas fa-chart-line"></i> 游戏统计</h3>
+                <div class="game-stats">
+                    <div class="stat"><div class="stat-value" id="lines">0</div><div class="stat-label">消除行数</div></div>
+                    <div class="stat"><div class="stat-value" id="pieces">0</div><div class="stat-label">方块数量</div></div>
+                </div>
+                <div style="margin-top: 20px; text-align: center;">
+                    <button type="button" class="btn btn-secondary" onclick="window.game.togglePause()" id="pauseBtn"><i class="fas fa-pause"></i> 暂停游戏</button>
+                    <button type="button" class="btn" onclick="window.game.restartGame()"><i class="fas fa-redo"></i> 重新开始</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="game-overlay" id="gameOver">
+        <h2><i class="fas fa-skull"></i> 游戏结束!</h2>
+        <p>得分: <span id="finalScore">0</span></p>
+        <p>连击: <span id="finalCombo">0</span></p>
+        <input type="text" id="playerName" placeholder="输入你的名字" maxlength="12" aria-label="玩家名字">
+        <div style="margin-top: 20px;">
+            <button type="button" class="btn" onclick="window.game.saveScore()"><i class="fas fa-save"></i> 保存记录</button>
+            <button type="button" class="btn btn-secondary" onclick="window.game.restartGame()"><i class="fas fa-redo"></i> 重新开始</button>
+        </div>
+    </div>
+    
+    <div class="game-overlay" id="pauseMenu">
+        <h2><i class="fas fa-pause-circle"></i> 游戏暂停</h2>
+        <p>当前得分: <span id="pauseScore">0</span></p>
+        <p>当前等级: <span id="pauseLevel">0</span></p>
+        <div style="margin-top: 30px;">
+            <button type="button" class="btn" onclick="window.game.togglePause()"><i class="fas fa-play"></i> 继续游戏</button>
+            <button type="button" class="btn btn-secondary" onclick="window.game.restartGame()"><i class="fas fa-redo"></i> 重新开始</button>
+        </div>
+    </div>
+
+    <script>
+        // ==================== 常量配置 ====================
+        const CONFIG = {
+            BLOCK_SIZE: 30,
+            COLS: 10,
+            ROWS: 20,
+            BASE_DROP_INTERVAL: 1000,
+            LOCK_DELAY: 500,
+            PREVIEW_COUNT: 3,
+            MAX_COMBO: 20,
+            PARTICLE_COUNT: 20,
+            SAVE_INTERVAL: 10000,
+            SHAPES: [
+                [[1,1,1,1]],               // I
+                [[1,1],[1,1]],             // O
+                [[1,1,1],[0,1,0]],         // T
+                [[1,1,1],[1,0,0]],         // L
+                [[1,1,1],[0,0,1]],         // J
+                [[1,1,0],[0,1,1]],         // S
+                [[0,1,1],[1,1,0]]          // Z
+            ],
+            COLORS: [
+                '#00FFFF', '#FFFF00', '#9400D3', '#FF7F00', '#0000FF', '#00FF00', '#FF0000'
+            ],
+            SRS_KICKS: {
+                I: [[[0,0],[-2,0],[1,0],[-2,-1],[1,2]],[[0,0],[2,0],[-1,0],[2,1],[-1,-2]],[[0,0],[-1,0],[2,0],[-1,2],[2,-1]],[[0,0],[1,0],[-2,0],[1,-2],[-2,1]]],
+                O: [[[0,0]],[[0,0]],[[0,0]],[[0,0]]],
+                T: [[[0,0],[-1,0],[-1,1],[0,-2],[-1,-2]],[[0,0],[1,0],[1,-1],[0,2],[1,2]],[[0,0],[1,0],[1,1],[0,-2],[1,-2]],[[0,0],[-1,0],[-1,-1],[0,2],[-1,2]]],
+                L: [[[0,0],[-1,0],[-1,1],[0,-2],[-1,-2]],[[0,0],[1,0],[1,-1],[0,2],[1,2]],[[0,0],[1,0],[1,1],[0,-2],[1,-2]],[[0,0],[-1,0],[-1,-1],[0,2],[-1,2]]],
+                J: [[[0,0],[-1,0],[-1,1],[0,-2],[-1,-2]],[[0,0],[1,0],[1,-1],[0,2],[1,2]],[[0,0],[1,0],[1,1],[0,-2],[1,-2]],[[0,0],[-1,0],[-1,-1],[0,2],[-1,2]]],
+                S: [[[0,0],[-1,0],[-1,1],[0,-2],[-1,-2]],[[0,0],[1,0],[1,-1],[0,2],[1,2]],[[0,0],[1,0],[1,1],[0,-2],[1,-2]],[[0,0],[-1,0],[-1,-1],[0,2],[-1,2]]],
+                Z: [[[0,0],[-1,0],[-1,1],[0,-2],[-1,-2]],[[0,0],[1,0],[1,-1],[0,2],[1,2]],[[0,0],[1,0],[1,1],[0,-2],[1,-2]],[[0,0],[-1,0],[-1,-1],[0,2],[-1,2]]]
+            }
+        };
+
+        // 工具函数
+        const Utils = {
+            cloneArray(arr) { return arr.map(row => [...row]); },
+            rotateMatrix(matrix) {
+                const rows = matrix.length, cols = matrix[0].length;
+                const rotated = Array(cols).fill().map(() => Array(rows).fill(0));
+                for (let i = 0; i < rows; i++)
+                    for (let j = 0; j < cols; j++)
+                        rotated[j][rows - 1 - i] = matrix[i][j];
+                return rotated;
+            },
+            isTSpin(piece, board) {
+                if (piece.shapeIndex !== 2) return false;
+                const corners = [[piece.x, piece.y], [piece.x+2, piece.y], [piece.x, piece.y+2], [piece.x+2, piece.y+2]];
+                let filled = 0;
+                for (let [x, y] of corners) {
+                    if (x < 0 || x >= CONFIG.COLS || y >= CONFIG.ROWS) filled++;
+                    else if (y >= 0 && board[y][x]) filled++;
+                }
+                return filled >= 3;
+            },
+            vibrate(pattern = [50]) { if ('vibrate' in navigator) navigator.vibrate(pattern); },
+            saveToStorage(key, data) { try { localStorage.setItem(key, JSON.stringify(data)); } catch(e) {} },
+            loadFromStorage(key, def = null) { try { return JSON.parse(localStorage.getItem(key)) || def; } catch(e) { return def; } }
+        };
+
+        // 粒子系统
+        class ParticleSystem {
+            constructor() { this.particles = []; this.active = false; }
+            createExplosion(x, y, color, count = CONFIG.PARTICLE_COUNT) {
+                for (let i = 0; i < count; i++) this.particles.push({ x, y, vx: (Math.random()-0.5)*8, vy: (Math.random()-0.5)*8, life: 1, decay: Math.random()*0.02+0.01, size: Math.random()*4+2, color });
+                this.active = true;
+                Utils.vibrate([30, 50, 30]);
+            }
+            update() {
+                if (!this.active) return;
+                this.particles = this.particles.filter(p => { p.x += p.vx; p.y += p.vy; p.life -= p.decay; p.size *= 0.98; return p.life > 0; });
+                if (!this.particles.length) this.active = false;
+            }
+            render(ctx) {
+                if (!this.active) return;
+                this.particles.forEach(p => { ctx.save(); ctx.globalAlpha = p.life; ctx.fillStyle = p.color; ctx.shadowBlur = 8; ctx.fillRect(p.x-p.size/2, p.y-p.size/2, p.size, p.size); ctx.restore(); });
+            }
+        }
+
+        class Piece {
+            constructor(shapeIndex, x, y) {
+                this.shapeIndex = shapeIndex;
+                this.shape = Utils.cloneArray(CONFIG.SHAPES[shapeIndex]);
+                this.color = CONFIG.COLORS[shapeIndex];
+                this.x = x !== undefined ? x : Math.floor(CONFIG.COLS/2) - Math.floor(this.shape[0].length/2);
+                this.y = y !== undefined ? y : 0;
+                this.rotationState = 0;
+            }
+            rotate(clockwise = true) {
+                this.shape = Utils.rotateMatrix(this.shape);
+                this.rotationState = (this.rotationState + (clockwise ? 1 : -1) + 4) % 4;
+            }
+            getSRSKicks(oldState, clockwise) {
+                const name = ['I','O','T','L','J','S','Z'][this.shapeIndex];
+                const kicks = CONFIG.SRS_KICKS[name];
+                const newState = (oldState + (clockwise ? 1 : -1) + 4) % 4;
+                return kicks[oldState].map((k, i) => [k[0] - kicks[newState][i][0], k[1] - kicks[newState][i][1]]);
+            }
+        }
+
+        class TetrisGame {
+            constructor() {
+                this.canvas = document.getElementById('game');
+                this.ctx = this.canvas.getContext('2d');
+                this.board = Array(CONFIG.ROWS).fill().map(() => Array(CONFIG.COLS).fill(0));
+                this.currentPiece = null;
+                this.nextQueue = [];
+                this.score = 0; this.lines = 0; this.level = 1; this.pieces = 0; this.combo = -1;
+                this.lastAction = null;
+                this.gameOver = false; this.isPaused = false;
+                this.lockDelayTimer = 0; this.isLocking = false;
+                this.particleSystem = new ParticleSystem();
+                this.animationId = null;
+                this.lastTime = Date.now();
+                this.dropInterval = CONFIG.BASE_DROP_INTERVAL;
+                this.ranking = Utils.loadFromStorage('tetrisRanking', []);
+                this.previewCanvases = [];
+                this.init();
+            }
+
+            init() {
+                this.setupControls();
+                this.setupThemeSwitcher();
+                this.generatePreviewQueue();
+                this.spawnPiece();
+                this.updateRanking();
+                this.restoreGameState();
+                this.startGameLoop();
+            }
+
+            setupControls() {
+                const moveHandler = (dx, dy) => { if (!this.gameOver && !this.isPaused) this.move(dx, dy, 'move'); };
+                document.getElementById('left').addEventListener('click', () => moveHandler(-1, 0));
+                document.getElementById('right').addEventListener('click', () => moveHandler(1, 0));
+                document.getElementById('down').addEventListener('click', () => moveHandler(0, 1));
+                document.getElementById('up').addEventListener('click', () => { if (!this.gameOver && !this.isPaused) this.rotate(); });
+                
+                document.addEventListener('keydown', (e) => {
+                    if (this.gameOver && e.key === 'Enter') { this.restartGame(); return; }
+                    if (this.gameOver) return;
+                    const key = e.key;
+                    if (['ArrowLeft', 'ArrowRight', 'ArrowDown', 'ArrowUp', 'Shift', 'p', 'Escape', 'r'].includes(key)) e.preventDefault();
+                    if (key === 'ArrowLeft') this.move(-1, 0, 'move');
+                    else if (key === 'ArrowRight') this.move(1, 0, 'move');
+                    else if (key === 'ArrowDown') this.move(0, 1, 'move');
+                    else if (key === 'ArrowUp') this.rotate();
+                    else if (key === 'Shift') this.hardDrop();
+                    else if (key === 'p' || key === 'Escape') this.togglePause();
+                    else if (key === 'r') this.restartGame();
+                });
+            }
+
+            setupThemeSwitcher() {
+                const theme = Utils.loadFromStorage('tetrisTheme', 'dark');
+                document.documentElement.setAttribute('data-theme', theme);
+                document.querySelectorAll('.theme-btn').forEach(btn => {
+                    if (btn.dataset.theme === theme) btn.classList.add('active');
+                    else btn.classList.remove('active');
+                    btn.onclick = () => {
+                        document.documentElement.setAttribute('data-theme', btn.dataset.theme);
+                        Utils.saveToStorage('tetrisTheme', btn.dataset.theme);
+                        document.querySelectorAll('.theme-btn').forEach(b => b.classList.remove('active'));
+                        btn.classList.add('active');
+                    };
+                });
+            }
+
+            generatePreviewQueue() {
+                this.nextQueue = [];
+                for (let i = 0; i < CONFIG.PREVIEW_COUNT + 1; i++) this.nextQueue.push(Math.floor(Math.random() * CONFIG.SHAPES.length));
+                const container = document.getElementById('nextQueue');
+                container.innerHTML = '';
+                this.previewCanvases = [];
+                for (let i = 0; i < CONFIG.PREVIEW_COUNT; i++) {
+                    const canvas = document.createElement('canvas');
+                    canvas.width = 80; canvas.height = 80;
+                    canvas.className = 'next-canvas';
+                    container.appendChild(canvas);
+                    this.previewCanvases.push(canvas);
+                }
+                this.updatePreview();
+            }
+
+            updatePreview() {
+                this.nextQueue.slice(0, CONFIG.PREVIEW_COUNT).forEach((idx, i) => {
+                    const canvas = this.previewCanvases[i];
+                    if (!canvas) return;
+                    const ctx = canvas.getContext('2d');
+                    ctx.clearRect(0, 0, 80, 80);
+                    ctx.fillStyle = 'rgba(0,0,0,0.3)';
+                    ctx.fillRect(0, 0, 80, 80);
+                    const shape = CONFIG.SHAPES[idx];
+                    const color = CONFIG.COLORS[idx];
+                    const bs = 20;
+                    const offX = (80 - shape[0].length * bs) / 2;
+                    const offY = (80 - shape.length * bs) / 2;
+                    shape.forEach((row, y) => row.forEach((cell, x) => {
+                        if (cell) {
+                            ctx.fillStyle = color;
+                            ctx.fillRect(offX + x*bs, offY + y*bs, bs-1, bs-1);
+                            ctx.fillStyle = 'rgba(255,255,255,0.3)';
+                            ctx.fillRect(offX + x*bs, offY + y*bs, bs-1, 3);
+                        }
+                    }));
+                });
+            }
+
+            spawnPiece() {
+                this.pieces++;
+                this.currentPiece = new Piece(this.nextQueue.shift());
+                this.nextQueue.push(Math.floor(Math.random() * CONFIG.SHAPES.length));
+                this.updatePreview();
+                this.isLocking = false;
+                this.lockDelayTimer = 0;
+                this.lastAction = 'spawn';
+                if (!this.isValidMove(this.currentPiece, this.currentPiece.x, this.currentPiece.y)) this.endGame();
+                document.getElementById('pieces').textContent = this.pieces;
+                this.saveGameState();
+            }
+
+            isValidMove(piece, nx, ny, nshape = null) {
+                const shape = nshape || piece.shape;
+                for (let y = 0; y < shape.length; y++)
+                    for (let x = 0; x < shape[y].length; x++)
+                        if (shape[y][x]) {
+                            const xx = nx + x, yy = ny + y;
+                            if (xx < 0 || xx >= CONFIG.COLS || yy >= CONFIG.ROWS) return false;
+                            if (yy >= 0 && this.board[yy][xx]) return false;
+                        }
+                return true;
+            }
+
+            move(dx, dy, action) {
+                if (this.gameOver || this.isPaused) return false;
+                const nx = this.currentPiece.x + dx, ny = this.currentPiece.y + dy;
+                if (this.isValidMove(this.currentPiece, nx, ny)) {
+                    this.currentPiece.x = nx;
+                    this.currentPiece.y = ny;
+                    this.lastAction = action;
+                    this.isLocking = false;
+                    this.lockDelayTimer = 0;
+                    if (dy > 0) { this.score += 1 * this.level; this.updateScore(); }
+                    return true;
+                }
+                if (dy > 0) this.isLocking = true;
+                return false;
+            }
+
+            rotate() {
+                if (this.gameOver || this.isPaused) return;
+                const oldShape = Utils.cloneArray(this.currentPiece.shape);
+                const oldX = this.currentPiece.x, oldY = this.currentPiece.y;
+                const oldState = this.currentPiece.rotationState;
+                this.currentPiece.rotate(true);
+                if (!this.isValidMove(this.currentPiece, this.currentPiece.x, this.currentPiece.y)) {
+                    const kicks = this.currentPiece.getSRSKicks(oldState, true);
+                    let ok = false;
+                    for (let [kx, ky] of kicks) {
+                        if (this.isValidMove(this.currentPiece, oldX + kx, oldY - ky)) {
+                            this.currentPiece.x = oldX + kx;
+                            this.currentPiece.y = oldY - ky;
+                            ok = true;
+                            break;
+                        }
+                    }
+                    if (!ok) {
+                        this.currentPiece.shape = oldShape;
+                        this.currentPiece.x = oldX;
+                        this.currentPiece.y = oldY;
+                        this.currentPiece.rotationState = oldState;
+                        return;
+                    }
+                }
+                this.lastAction = 'rotate';
+                this.isLocking = false;
+                this.lockDelayTimer = 0;
+            }
+
+            hardDrop() {
+                if (this.gameOver || this.isPaused) return;
+                let drop = 0;
+                while (this.move(0, 1, 'hard')) drop++;
+                this.score += drop * 2 * this.level;
+                this.updateScore();
+                this.mergePiece();
+            }
+
+            update() {
+                if (this.gameOver || this.isPaused) return;
+                this.dropInterval = Math.max(100, CONFIG.BASE_DROP_INTERVAL - (this.level-1)*50);
+                const now = Date.now();
+                if (now >= this.lastTime + this.dropInterval) {
+                    if (!this.move(0, 1, 'move')) {
+                        if (this.isLocking) {
+                            this.lockDelayTimer += this.dropInterval;
+                            if (this.lockDelayTimer >= CONFIG.LOCK_DELAY) this.mergePiece();
+                        } else this.isLocking = true;
+                    }
+                    this.lastTime = now;
+                }
+                this.particleSystem.update();
+            }
+
+            mergePiece() {
+                const isTSpin = Utils.isTSpin(this.currentPiece, this.board);
+                if (isTSpin) {
+                    this.score += 400 * this.level;
+                    this.updateScore();
+                    const ind = document.getElementById('tspinIndicator');
+                    ind.textContent = 'T-SPIN!';
+                    ind.classList.add('tspin-active');
+                    setTimeout(() => { ind.textContent = ''; ind.classList.remove('tspin-active'); }, 1000);
+                    Utils.vibrate([100,50,100]);
+                }
+                for (let y = 0; y < this.currentPiece.shape.length; y++)
+                    for (let x = 0; x < this.currentPiece.shape[y].length; x++)
+                        if (this.currentPiece.shape[y][x]) {
+                            const by = this.currentPiece.y + y, bx = this.currentPiece.x + x;
+                            if (by >= 0 && by < CONFIG.ROWS && bx >=0 && bx<CONFIG.COLS)
+                                this.board[by][bx] = this.currentPiece.color;
+                        }
+                this.clearLines();
+                this.spawnPiece();
+                this.saveGameState();
+            }
+
+            clearLines() {
+                const rowsToClear = [];
+                for (let y = CONFIG.ROWS-1; y >=0; y--) if (this.board[y].every(cell => cell !== 0)) rowsToClear.push(y);
+                if (rowsToClear.length === 0) { this.combo = -1; this.updateComboDisplay(); return; }
+                
+                this.combo++;
+                this.updateComboDisplay();
+                const pointsMap = {1:100,2:300,3:500,4:800};
+                let addScore = (pointsMap[rowsToClear.length] || 100) * this.level;
+                if (this.combo > 0) addScore += this.combo * 50 * this.level;
+                this.score += addScore;
+                this.lines += rowsToClear.length;
+                const newLevel = Math.floor(this.lines / 10) + 1;
+                if (newLevel > this.level) this.level = newLevel;
+                this.updateScore();
+                this.updateUI();
+                
+                rowsToClear.forEach(y => {
+                    this.particleSystem.createExplosion(CONFIG.COLS * CONFIG.BLOCK_SIZE / 2, y * CONFIG.BLOCK_SIZE + CONFIG.BLOCK_SIZE/2, '#00ff00', 12);
+                });
+                
+                for (let r of rowsToClear.sort((a,b)=>a-b)) {
+                    this.board.splice(r, 1);
+                    this.board.unshift(Array(CONFIG.COLS).fill(0));
+                }
+                this.updateUI();
+            }
+
+            updateComboDisplay() {
+                const disp = document.getElementById('comboDisplay');
+                if (this.combo > 0) { disp.textContent = `${Math.min(this.combo, CONFIG.MAX_COMBO)} 连击!`; disp.classList.add('combo-active'); setTimeout(() => disp.classList.remove('combo-active'), 300); }
+                else disp.textContent = '';
+            }
+
+            updateScore() { document.getElementById('score').textContent = `得分: ${this.score}`; }
+            updateUI() {
+                document.getElementById('score').textContent = `得分: ${this.score}`;
+                document.getElementById('lines').textContent = this.lines;
+                document.getElementById('level').textContent = this.level;
+                document.getElementById('pieces').textContent = this.pieces;
+                document.getElementById('levelProgress').style.width = `${(this.lines % 10) * 10}%`;
+            }
+
+            render() {
+                this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+                this.ctx.fillStyle = 'rgba(0,0,0,0.2)';
+                this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+                for (let x = 0; x <= CONFIG.COLS; x++) { this.ctx.beginPath(); this.ctx.moveTo(x*30,0); this.ctx.lineTo(x*30,600); this.ctx.strokeStyle = 'rgba(255,255,255,0.1)'; this.ctx.stroke(); }
+                for (let y = 0; y <= CONFIG.ROWS; y++) { this.ctx.beginPath(); this.ctx.moveTo(0,y*30); this.ctx.lineTo(300,y*30); this.ctx.stroke(); }
+                for (let y=0; y<CONFIG.ROWS; y++) for (let x=0; x<CONFIG.COLS; x++) if(this.board[y][x]) this.renderBlock(x, y, this.board[y][x]);
+                if (this.currentPiece) {
+                    let ghostY = this.currentPiece.y;
+                    while (this.isValidMove(this.currentPiece, this.currentPiece.x, ghostY+1)) ghostY++;
+                    this.ctx.globalAlpha = 0.3;
+                    this.currentPiece.shape.forEach((row, y) => row.forEach((cell, x) => { if(cell) this.renderBlock(this.currentPiece.x+x, ghostY+y, this.currentPiece.color); }));
+                    this.ctx.globalAlpha = 1;
+                    this.currentPiece.shape.forEach((row, y) => row.forEach((cell, x) => { if(cell) this.renderBlock(this.currentPiece.x+x, this.currentPiece.y+y, this.currentPiece.color); }));
+                }
+                this.particleSystem.render(this.ctx);
+                if (this.isPaused) this.renderPauseOverlay();
+                if (this.gameOver) this.renderGameOverOverlay();
+            }
+
+            renderBlock(x, y, color) {
+                const px = x*30, py = y*30;
+                this.ctx.fillStyle = color; this.ctx.fillRect(px, py, 28, 28);
+                this.ctx.fillStyle = 'rgba(255,255,255,0.2)'; this.ctx.fillRect(px, py, 28, 4);
+                this.ctx.strokeStyle = 'rgba(0,0,0,0.3)'; this.ctx.strokeRect(px, py, 28, 28);
+            }
+            renderPauseOverlay() { this.ctx.fillStyle = 'rgba(0,0,0,0.7)'; this.ctx.fillRect(0,0,300,600); this.ctx.fillStyle='white'; this.ctx.font='bold 30px Arial'; this.ctx.fillText('暂停', 150, 280); }
+            renderGameOverOverlay() { this.ctx.fillStyle = 'rgba(0,0,0,0.85)'; this.ctx.fillRect(0,0,300,600); this.ctx.fillStyle='#e74c3c'; this.ctx.font='bold 28px Arial'; this.ctx.fillText('GAME OVER', 150, 280); }
+
+            startGameLoop() {
+                if (this.animationId) cancelAnimationFrame(this.animationId);
+                const loop = () => { this.update(); this.render(); this.animationId = requestAnimationFrame(loop); };
+                this.animationId = requestAnimationFrame(loop);
+            }
+
+            togglePause() {
+                if (this.gameOver) return;
+                this.isPaused = !this.isPaused;
+                const btn = document.getElementById('pauseBtn');
+                const menu = document.getElementById('pauseMenu');
+                if (this.isPaused) {
+                    btn.innerHTML = '<i class="fas fa-play"></i> 继续游戏';
+                    document.getElementById('pauseScore').textContent = this.score;
+                    document.getElementById('pauseLevel').textContent = this.level;
+                    menu.style.display = 'block';
+                } else {
+                    btn.innerHTML = '<i class="fas fa-pause"></i> 暂停游戏';
+                    menu.style.display = 'none';
+                }
+            }
+
+            endGame() {
+                this.gameOver = true;
+                document.getElementById('gameOver').style.display = 'block';
+                document.getElementById('finalScore').textContent = this.score;
+                document.getElementById('finalCombo').textContent = Math.max(0, this.combo);
+                if (this.animationId) cancelAnimationFrame(this.animationId);
+                Utils.saveToStorage('tetrisGameState', null);
+            }
+
+            restartGame() {
+                if (this.animationId) cancelAnimationFrame(this.animationId);
+                this.board = Array(CONFIG.ROWS).fill().map(() => Array(CONFIG.COLS).fill(0));
+                this.score = 0; this.lines = 0; this.level = 1; this.pieces = 0; this.combo = -1;
+                this.gameOver = false; this.isPaused = false;
+                this.lockDelayTimer = 0; this.isLocking = false; this.lastAction = null;
+                this.lastTime = Date.now();
+                this.updateUI(); this.updateComboDisplay();
+                document.getElementById('gameOver').style.display = 'none';
+                document.getElementById('pauseMenu').style.display = 'none';
+                document.getElementById('pauseBtn').innerHTML = '<i class="fas fa-pause"></i> 暂停游戏';
+                this.generatePreviewQueue();
+                this.spawnPiece();
+                this.startGameLoop();
+            }
+
+            saveScore() {
+                const name = document.getElementById('playerName').value.trim() || '匿名玩家';
+                this.ranking.push({ name: name.slice(0,8), score: this.score, combo: Math.max(0,this.combo), date: new Date().toLocaleDateString(), timestamp: Date.now() });
+                this.ranking.sort((a,b) => b.score - a.score || b.timestamp - a.timestamp);
+                this.ranking = this.ranking.slice(0,10);
+                Utils.saveToStorage('tetrisRanking', this.ranking);
+                this.updateRanking();
+                document.getElementById('gameOver').style.display = 'none';
+                this.restartGame();
+            }
+            updateRanking() {
+                const list = document.getElementById('rankingList');
+                list.innerHTML = '';
+                if (!this.ranking.length) { list.innerHTML = '<p style="color:#888; padding:10px;">暂无记录</p>'; return; }
+                this.ranking.forEach((e,i) => { let li = document.createElement('li'); li.innerHTML = `<span>${i+1}. ${e.name}</span><span>${e.score}</span>`; list.appendChild(li); });
+            }
+            clearRanking() { if(confirm('清空排行榜?')){ this.ranking = []; Utils.saveToStorage('tetrisRanking', []); this.updateRanking(); } }
+            saveGameState() { if (!this.gameOver && !this.isPaused) Utils.saveToStorage('tetrisGameState', { board: this.board, score: this.score, level: this.level, lines: this.lines, pieces: this.pieces, combo: this.combo, nextQueue: this.nextQueue, timestamp: Date.now() }); }
+            restoreGameState() {
+                const st = Utils.loadFromStorage('tetrisGameState');
+                if (!st || Date.now() - st.timestamp > 3600000) return;
+                if (confirm('检测到未完成游戏，是否恢复？')) {
+                    this.board = st.board; this.score = st.score; this.level = st.level; this.lines = st.lines; this.pieces = st.pieces; this.combo = st.combo; this.nextQueue = st.nextQueue;
+                    this.updateUI(); this.updateComboDisplay(); this.updatePreview();
+                    this.spawnPiece();
+                }
+            }
+        }
+
+        window.game = new TetrisGame();
+        setInterval(() => window.game.saveGameState(), CONFIG.SAVE_INTERVAL);
+        document.addEventListener('visibilitychange', () => { if (document.hidden && window.game && !window.game.isPaused && !window.game.gameOver) window.game.togglePause(); });
+    </script>
+</body>
+</html>
+<!--Printf("%s","Hello world.")开发-->
+<!--Printf("%s","Hello world.")开发-->
+<!--Printf("%s","Hello world.")开发-->
+<!--版本：5.1.20260503-->
+<!-- 开发 20241201>>20260503 -->

@@ -1,0 +1,117 @@
+{
+  "version": 2,
+  "title": "游戏大厅",
+  "subtitle": "本地单机游戏合集 · 零网络依赖",
+  "groups": [
+    { "id": "web", "name": "网页游戏", "icon": "fa-window-maximize", "hint": "点击卡片 → 在本窗口内直接游玩" },
+    { "id": "exe", "name": "本地程序", "icon": "fa-desktop", "hint": "点击卡片 → 启动独立程序" }
+  ],
+  "games": [
+    {
+      "id": "breach",
+      "name": "交火",
+      "group": "web",
+      "kind": "web",
+      "path": "game/breach/index.html",
+      "cover": "fa-crosshairs",
+      "accent": "#ffc256",
+      "featured": true,
+      "tags": ["战术射击", "战役", "丧尸围城", "四页一体"],
+      "desc": "室内战术射击 v3.5.1：五张战役地图、18 项永久升级、15 项成就、3 个存档位、本地排行榜，外加丧尸围城长街尸潮。v3 的破墙锤 / 声源诱饵 / 配电箱断电 / 小地图批注 / 战后作业图仍在；v3.2 新增本地排行榜（战役与长街各一张）、可选加密导出、可选账户（进度与设置以密文存在本机）。四个页面共用同一份存档，是一座完整作品的四个部分。",
+      "modes": [
+        { "id": "home",     "name": "主页 · 教程",        "icon": "fa-house",              "path": "game/breach/index.html",       "desc": "图文教程、战绩速览、存档位与导入导出、本地排行榜、五图预览" },
+        { "id": "hub",      "name": "整备大厅",           "icon": "fa-screwdriver-wrench", "path": "game/breach/game/hub.html",    "desc": "装备 / 难度 / 地图 / 18 项升级 / 军衔晋升钢印 / 成就墙 / 存档位 / 排行榜 / 账户" },
+        { "id": "campaign", "name": "战役 · 红蓝对抗",    "icon": "fa-crosshairs",         "path": "game/breach/game/breach.html", "desc": "战斗本体：真实视线、战术指令、AI 包抄、破墙 / 诱饵 / 断电、训练场与作业图" },
+        { "id": "street",   "name": "丧尸围城 · 长街尸潮", "icon": "fa-skull",              "path": "game/breach/game/street.html", "desc": "长街波次防守：无限尸潮、僵尸王、波间工事、队友招募与撤离窗口" }
+      ]
+    },
+    {
+      "id": "snake",
+      "name": "贪吃蛇",
+      "group": "web",
+      "kind": "web",
+      "path": "game/贪吃蛇.html",
+      "cover": "fa-worm",
+      "accent": "#3ddc84",
+      "tags": ["街机", "排行榜"],
+      "desc": "经典贪吃蛇：多主题皮肤、本地最高分记录、触屏与键盘双操作。"
+    },
+    {
+      "id": "shooter",
+      "name": "太空射手",
+      "group": "web",
+      "kind": "web",
+      "path": "game/太空射手.html",
+      "cover": "fa-rocket",
+      "accent": "#5fb0ff",
+      "tags": ["弹幕射击", "Boss 战"],
+      "desc": "竖版弹幕射击：多种敌机与 Boss、道具强化、WebAudio 合成音效。"
+    },
+    {
+      "id": "tetris",
+      "name": "俄罗斯方块",
+      "group": "web",
+      "kind": "web",
+      "path": "game/俄罗斯方块.html",
+      "cover": "fa-cubes",
+      "accent": "#c084fc",
+      "tags": ["益智", "主题切换"],
+      "desc": "经典俄罗斯方块：7 种方块、等级加速、多套主题配色、本地最高分。"
+    },
+    {
+      "id": "minesweeper",
+      "name": "扫雷",
+      "group": "web",
+      "kind": "web",
+      "path": "game/扫雷/扫雷游戏.html",
+      "cover": "fa-bomb",
+      "accent": "#f87171",
+      "tags": ["益智", "无猜模式"],
+      "desc": "经典扫雷(离线版)：小中盘为无猜模式，整局可纯推理通关；支持自动标雷与夜间模式。"
+    },
+    {
+      "id": "zombie",
+      "name": "丧尸末日",
+      "group": "exe",
+      "kind": "exe",
+      "path": "game/程序/丧尸末日.exe",
+      "cover": "fa-biohazard",
+      "accent": "#84cc16",
+      "tags": ["控制台", "生存"],
+      "desc": "丧尸末日生存模拟(独立 EXE，点击后在独立窗口启动)。"
+    },
+    {
+      "id": "loopday",
+      "name": "如果你被困在了同一天",
+      "group": "exe",
+      "kind": "exe",
+      "path": "game/程序/如果你被困在了同一天.exe",
+      "cover": "fa-clock-rotate-left",
+      "accent": "#38bdf8",
+      "tags": ["控制台", "剧情"],
+      "desc": "时间循环题材的文字冒险(独立 EXE)。"
+    },
+    {
+      "id": "werewolf",
+      "name": "狼人杀",
+      "group": "exe",
+      "kind": "exe",
+      "path": "game/程序/狼人杀.exe",
+      "cover": "fa-user-secret",
+      "accent": "#a78bfa",
+      "tags": ["控制台", "推理"],
+      "desc": "狼人杀对局模拟：多身份、白天投票与夜间行动(独立 EXE)。"
+    },
+    {
+      "id": "catkingdom",
+      "name": "猫国建设者",
+      "group": "exe",
+      "kind": "exe",
+      "path": "game/程序/猫国建设者.exe",
+      "cover": "fa-cat",
+      "accent": "#fbbf24",
+      "tags": ["控制台", "经营"],
+      "desc": "猫国经营建设：资源产出与科技升级的放置经营(独立 EXE)。"
+    }
+  ]
+}

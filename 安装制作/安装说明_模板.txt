@@ -1,0 +1,122 @@
+﻿游戏大厅 v{{VERSION}} · 安装说明
+============================================================
+
+一、这是什么
+------------------------------------------------------------
+「游戏大厅」是本地单机游戏合集，主程序是 游戏大厅.exe，
+游戏都在 game\ 目录里，全部离线可玩。
+
+这个安装包是「完整离线包」：
+  payload\   游戏大厅本体（{{PAYLOAD_COUNT}} 个文件，约 {{PAYLOAD_MB}} MB）
+  redist\    离线组件（约 {{REDIST_MB}} MB）
+             - MicrosoftEdgeWebView2RuntimeInstallerX64.exe
+             - MicrosoftEdgeWebView2RuntimeInstallerX86.exe
+             - 360cse_23.0.1253.0.exe（360 极速浏览器）
+
+二、怎么安装
+------------------------------------------------------------
+1. 把整个压缩包解压到一个文件夹（不要在压缩包里直接双击）；
+2. 双击 安装.bat；
+3. 安装器会先显示默认安装目录，并等待你输入：
+     - 直接回车          → 用默认目录；
+     - 直接输入完整路径  → 装到那里，例如：
+         Z:\Root
+         G:\Fire\fontawesome-free-7.3.1-web
+       路径不需要加引号；带空格也可以整行输入。
+4. 安装器自动检查 WebView2 / 浏览器 / 已装版本，然后复制文件、创建快捷方式；
+5. 安装完成后双击桌面「游戏大厅」即可。
+
+默认安装目录（当前用户，不需要管理员）：
+  %LOCALAPPDATA%\Programs\游戏大厅
+如果本机已经装过，默认值会变成已安装目录（例如 Z:\Root），
+直接回车就是原地升级。
+
+想装到所有用户（Program Files，需要管理员）：
+  右键 安装.bat → 以管理员身份运行
+  然后运行：powershell -ExecutionPolicy Bypass -File install.ps1 -Machine
+
+不想询问、直接指定目录：
+  powershell -ExecutionPolicy Bypass -File install.ps1 -InstallDir "D:\Games\游戏大厅"
+  powershell -ExecutionPolicy Bypass -File install.ps1 -NoPrompt
+
+> 注意：在真正的控制台窗口里直接输入中文路径没问题；
+> 如果是用管道/脚本批量传入中文路径，建议改用 -InstallDir 参数，避免管道编码差异。
+
+三、安装器会检查什么
+------------------------------------------------------------
+[1] 安装包是否完整（游戏大厅.exe / games.json / game\ 是否都在）。
+[2] 选择安装目录（可直接输入 Z:\Root 这类路径），再检查该目录是否已安装「游戏大厅」：
+      - 目标目录没有  → 全新安装；
+      - 目标目录是旧版 → 覆盖升级，保留 _runtime 存档；
+      - 目标目录同版本 → 校验文件完整性，缺文件/被改动就修复，否则跳过；
+      - 目标目录更新版 → 默认不降级；确需降级加 -Force。
+[3] WebView2 运行时：
+      - 有 → 跳过；
+      - 没有 → 按系统位数静默安装 redist\ 里对应的离线安装器；
+      - 装不上 → 停止并提示手动安装（可加 -ContinueWithoutWebView2 强行继续）。
+[4] 现代浏览器（排除 IE）：
+      检查 Edge / Chrome / Firefox / 360 / QQ / Opera / Brave / Vivaldi 等；
+      - 有 → 跳过；
+      - 没有 → 安装 redist\360cse_23.0.1253.0.exe（360 极速浏览器）。
+      说明：大厅本身用 WebView2 显示网页，不依赖外部浏览器；
+            这一项是按“没有现代浏览器就装 360”的要求做的兜底。
+
+安装后的桌面/开始菜单快捷方式和卸载项图标，默认使用安装目录下的 `photo.ico`。
+
+四、版本与升级
+------------------------------------------------------------
+安装包版本：{{VERSION}}
+查看已安装版本：
+  HKCU\Software\游戏大厅 的 Version
+  或安装目录下 install.json / version.json
+
+升级不会删除：
+  - _runtime\（网页游戏存档）
+  - 你自己导出到安装目录的存档 JSON
+但会覆盖游戏本体、photo.ico 和 README 等程序文件。
+
+五、卸载
+------------------------------------------------------------
+方式一：Windows 设置 → 应用 → 已安装的应用 → 游戏大厅 → 卸载
+方式二：安装目录下 卸载游戏大厅.bat（最直观；设置里的卸载同样走 _installer\uninstall.ps1）
+方式三：安装包根目录下 卸载游戏大厅.bat（从注册表找已安装位置）
+方式四：powershell -ExecutionPolicy Bypass -File uninstall.ps1
+
+默认会保留存档，移动到：
+  %LOCALAPPDATA%\游戏大厅_存档备份\<时间戳>\_runtime
+
+想连存档一起删：
+  powershell -ExecutionPolicy Bypass -File uninstall.ps1 -RemoveSaves
+
+六、常见问题
+------------------------------------------------------------
+Q: 双击 安装.bat 一闪而过 / 中文乱码？
+A: 安装.bat 本身只含英文，中文由 PowerShell 输出；
+   如果窗口一闪而过，请右键“以管理员身份运行”，或打开 PowerShell 手动运行：
+   powershell -ExecutionPolicy Bypass -File install.ps1
+   安装器会把完整日志写到 %TEMP%\游戏大厅_安装日志_*.log。
+
+Q: 提示“智能应用控制已阻止”？
+A: 这是 Windows 11 对无签名新程序的限制，不是安装包损坏。
+   解决：设置 → 隐私和安全性 → Windows 安全中心 → 应用和浏览器控制
+         → 智能应用控制 → 关闭。或给 游戏大厅.exe 做代码签名。
+
+Q: 360 极速浏览器静默安装失败？
+A: 安装器会自动改为打开 360 安装界面，按提示点“安装”即可。
+   包内是 360cse（360 极速浏览器，Chromium 内核），
+   不是 360se（360 安全浏览器）；如果一定要 360se，
+   把 360se 安装包改名为 360cse_*.exe 放进 redist\ 即可被识别。
+
+Q: 32 位系统能用吗？
+A: 能。大厅是 32 位程序，WebView2 请用 X86 安装器；
+   安装器会按系统位数自动选择。
+
+七、文件校验
+------------------------------------------------------------
+manifest.json 里记录了 payload\ 与 redist\ 每个文件的 SHA256；
+发布目录下的 SHA256SUMS.txt 是整包校验清单。
+手动校验（PowerShell）：
+  Get-FileHash .\payload\游戏大厅.exe -Algorithm SHA256
+
+生成时间：{{DATE}}
+安装包目录名：{{STAGE_NAME}}

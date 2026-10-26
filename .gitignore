@@ -1,0 +1,25 @@
+# 运行时 / 存档
+Root/_runtime/
+Root/交火存档_*.json
+*.log
+
+# 大体积离线组件 / 发布物
+安装制作/redist/*.exe
+发布/
+归档/
+*.zip
+
+# 开发 / 构建缓存
+Root/_dev/cpp/wv2sdk/
+Root/_dev/cpp/_legacy_lobby/
+Root/_dev/_archive/
+Root/_dev/_backup_before_merge_*/
+Root/_dev/cpp/*.obj
+Root/_dev/cpp/_build_hall.exe
+
+# 本地工具
+.dsh-publish/
+.token
+mobshots/
+.mobbackup/
+.vscode/

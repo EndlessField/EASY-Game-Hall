@@ -1,0 +1,51 @@
+/* 扫雷游戏样式（从原页面 <style> 提取，无外部引用） */
+body{margin:0px;background-color:#f7f7f0;user-select: none;-webkit-user-select: none;}
+
+div{margin:auto;text-align:center;}
+
+input{height:1.5rem;width:3.8rem;}
+
+#face{
+	border:2px solid #808080;
+	border-left-color: #fff;
+	border-top-color: #fff;
+
+}
+#face:active{
+	border:2px solid #808080;
+	border-bottom:1px solid #808080; 
+	border-right:1px solid #808080; 
+
+}
+
+
+
+table{
+border-collapse:collapse;
+}
+
+.pad{
+border:2px solid #808080;
+border-right-color: #fff;
+border-bottom-color: #fff;
+}
+
+input[type=checkbox]{vertical-align:middle;height:1.19rem;width:1.5rem;}
+
+.choiced{
+text-decoration:none;
+font-weight:bold;
+color:#444;
+}
+
+.i5{
+text-align: center;
+
+margin-left:1px;
+}
+
+/* 无猜生成遮罩与设置面板 */
+#mk{display:none;position:fixed;left:0;top:0;right:0;bottom:0;background:rgba(30,30,30,.62);color:#fff;text-align:center;cursor:pointer;z-index:9;}
+#mk .mk-t{font-size:1.2rem;margin-top:36vh;}
+#mk .mk-s{font-size:.9rem;color:#ddd;margin-top:1rem;line-height:1.8;}
+.panel{border:solid 1px #808080;display:none;padding:0.5rem;text-align:left;width:90%;margin:0.6rem auto;}

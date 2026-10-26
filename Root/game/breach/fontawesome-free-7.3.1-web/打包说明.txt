@@ -1,0 +1,27 @@
+本目录是 FontAwesome Free 7.3.1 的「裁剪副本」
+============================================================
+
+官方发布包约 28.8 MB，包含 css/ js/ scss/ svgs/ svgs-full/ sprites/
+sprites-full/ metadata/ webfonts/ 共 8 个子目录。
+
+本游戏只引用其中 5 个文件，因此安装包只保留了这 5 个：
+
+  css/all.min.css
+  webfonts/fa-brands-400.woff2
+  webfonts/fa-regular-400.woff2
+  webfonts/fa-solid-900.woff2
+  webfonts/fa-v4compatibility.woff2
+
+其余目录与文件未包含，对界面显示没有任何影响
+（四个页面全部通过相对路径 <link> 引用 css/all.min.css，
+all.min.css 内部只 @font-face 引用上面这 4 个 woff2）。
+
+如果你想要完整的官方发布包，去 fontawesome.com 下载同版本即可覆盖本目录。
+
+开源许可（详见同目录 LICENSE.txt）
+----------------------------------
+- 图标: CC BY 4.0
+- 字体: SIL OFL 1.1
+- 代码: MIT
+
+Font Awesome Free 版权归 Fonticons, Inc. 所有。

@@ -1,0 +1,7 @@
+{
+  "app": "游戏大厅",
+  "version": "0.2",
+  "channel": "stable",
+  "entry": "游戏大厅.exe",
+  "builtAt": "2026-10-26"
+}

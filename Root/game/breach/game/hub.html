@@ -1,0 +1,3086 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>交火 · 整备大厅</title>
+<link rel="stylesheet" href="../fontawesome-free-7.3.1-web/css/all.min.css">
+<link rel="icon" href="../photo.ico" type="image/x-icon">
+<style>
+/* ============================================================================
+   交火 · 整备大厅 —— 「突入作业图 / BREACH WORKS DRAWING SET」视觉系统
+   ----------------------------------------------------------------------------
+   世界设定: 整套界面 = 一叠摊在制图台上的突入作业图纸(蓝晒底 + 象牙白描线)。
+     · 每个面板是一张"图纸"(sheet): 图框 + 四角对位标记 + 图签栏(图号/比例/张次)。
+     · 每条数据是一次"标注": 尺寸链 / 引线 / 编号 / 注记。
+     · 状态用线型表达: 实线=正常, 点划线=未达成, 剖面线=危险, 象牙白实底=当前/选中。
+     · 红蜡笔只表危险与失败, 黄蜡笔只表军功点/星级/可购买/波次, 二者都不铺面积。
+     · 纯 CSS 零网络: 无外部字体与图片, 图标走本地 FontAwesome, 不使用 emoji。
+     · 令牌与语法见 AI_README.md「界面视觉系统」一节; 旧变量名全部保留并重新赋色(页面/JS 行内仍在引用)。
+     · 可读性下限: 功能性文字一律 >= 11px; 深色前景统一走 --ink; 侧边强调条统一 2px。
+   ============================================================================ */
+:root{
+  /* —— 纸面(蓝晒底): 由外到内逐层变亮 —— */
+  --bg-canvas:#061624;
+  --inset:#04101b;
+  --surface:#0b2434;
+  --surface-2:#0f2e43;
+  --surface-3:#153c56;
+  --border:#1b4763;
+  --border-soft:#153a53;
+  --border-strong:#2a6386;
+  /* —— 墨线(象牙白, 微暖) —— */
+  --fg:#e8eef0;
+  --fg-2:#b9cdd8;
+  --fg-muted:#87a3b4;
+  --fg-subtle:#7c9aab;
+  /* —— 象牙白实底上的深色墨(唯一允许的深色前景) —— */
+  --ink:#06202f;
+  /* —— 蓝晒高亮: 选中 / 主动作 / 焦点 / 链接 —— */
+  --accent:#5ecbff;
+  --accent-2:#8bdcff;
+  --accent-fg:var(--ink);
+  --accent-sub:rgba(94,203,255,.10);
+  --accent-line:rgba(94,203,255,.34);
+  /* —— 蜡笔标注 —— */
+  --yellow:#ffc34d;
+  --yellow-2:#ffae1a;
+  --red:#ff5b47;
+  --red-2:#ff7d67;
+  --green:#4fd18b;
+  --lime:#b9e04a;
+  /* —— 阵营(与游戏页 TEAM_COLORS 同口径, 仅示意图与文案强调) —— */
+  --red-side:#ff8a7a;
+  --blue-side:#6fc0ff;
+  /* —— 字体链(离线逐字回退) —— */
+  --latin:"Bahnschrift SemiCondensed","Bahnschrift","Arial Narrow","Roboto Condensed","Oswald","Microsoft YaHei",sans-serif;
+  --latin-label:"Bahnschrift","Arial Narrow","Roboto Condensed","Oswald","Microsoft YaHei",sans-serif;
+  --mono:Consolas,"Cascadia Mono","JetBrains Mono","SF Mono",Menlo,monospace;
+  --track-caps:.08em;
+  --track-overline:.16em;
+  --dur-fast:150ms; --dur-normal:250ms;
+  --ease:cubic-bezier(.2,.8,.2,1);
+  /* 旧变量别名(必须保留: 页面与 JS 行内仍在使用) */
+  --gold:var(--accent); --txt:var(--fg); --muted:var(--fg-muted); --dim:var(--fg-muted);
+  --panel-top:var(--surface-2); --panel-sat:var(--surface-2); --line:var(--border);
+  --chip:var(--surface-2); --chip-line:var(--border-strong);
+  --blue:var(--accent); --cyan:var(--accent);
+}
+html,body{margin:0;min-height:100%;background:var(--bg-canvas);color:var(--fg);
+  font-family:"Microsoft YaHei","PingFang SC","Noto Sans SC",system-ui,sans-serif;
+  font-size:15px;line-height:1.7;-webkit-user-select:none;user-select:none;}
+/* 制图网格: 10px 细格 + 50px 粗格 + 边缘压暗, 全部纯 CSS 渐变 */
+body{background-color:var(--bg-canvas);
+  background-image:
+    repeating-linear-gradient(90deg,rgba(232,238,240,.030) 0 1px,transparent 1px 10px),
+    repeating-linear-gradient(0deg,rgba(232,238,240,.030) 0 1px,transparent 1px 10px),
+    repeating-linear-gradient(90deg,rgba(232,238,240,.055) 0 1px,transparent 1px 50px),
+    repeating-linear-gradient(0deg,rgba(232,238,240,.055) 0 1px,transparent 1px 50px),
+    radial-gradient(1200px 500px at 50% -10%,rgba(94,203,255,.06),transparent 60%),
+    linear-gradient(180deg,#0a1d2c 0%,var(--bg-canvas) 55%,#030c14 100%);
+  background-attachment:fixed;}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
+.hidden{display:none !important;}
+
+/* ===== 装饰原子 ===== */
+.overline{font-family:var(--latin);font-size:11px;font-weight:700;text-transform:uppercase;
+  letter-spacing:var(--track-overline);color:var(--fg-muted);font-variant-numeric:lining-nums;}
+.en{font-family:var(--latin);text-transform:uppercase;letter-spacing:var(--track-caps);
+  font-weight:700;font-variant-numeric:lining-nums;}
+.num{font-family:var(--mono);font-weight:700;letter-spacing:0;font-variant-numeric:tabular-nums;}
+.mono{font-family:var(--mono);font-variant-numeric:tabular-nums;}
+.slash{color:var(--accent);font-weight:400;opacity:.8;margin:0 8px;}
+/* 剖切符号(分区标题前的短粗线) */
+.tick{display:inline-block;width:4px;height:16px;background:var(--fg);flex:none;vertical-align:middle;}
+.tick.warn{background:var(--yellow);}
+.tick.dim{background:var(--border-strong);}
+/* 编号方块(替代旧角标三角: 直角, 带一根引线) */
+.xref{position:relative;flex:none;width:26px;height:26px;display:inline-flex;align-items:center;
+  justify-content:center;border:1px solid var(--border-strong);background:var(--inset);
+  font-family:var(--mono);font-size:11px;font-weight:700;color:var(--fg-2);letter-spacing:0;}
+/* 剖面线: 只用于危险/禁用/施工中 */
+.hatch{background-image:repeating-linear-gradient(45deg,
+  rgba(232,238,240,.16) 0 1px,transparent 1px 7px);}
+.hatch-danger{background-image:repeating-linear-gradient(45deg,
+  rgba(255,91,71,.42) 0 2px,transparent 2px 8px);}
+/* 点划线: 未达成 / 规划中 / 未解锁 */
+.phantom{border-bottom:1px dashed var(--border-strong);}
+/* 象牙白实底反转块 = "当前/选中" 的最终表达 */
+.inverse{background:var(--fg);color:var(--ink);font-weight:700;}
+.code{background:var(--fg);color:var(--ink);font-weight:700;font-family:var(--mono);}
+/* 菱形项目符号(旧母题, 保留) */
+.dia{display:inline-block;width:6px;height:6px;background:var(--accent);
+  transform:rotate(45deg);flex:none;margin-right:8px;}
+.dia.dim{background:var(--fg-subtle);}
+.dia.yellow{background:var(--yellow);}
+/* 引线注记: 小箭头 + 斜置文字(模拟现场手批) */
+.lead{position:relative;padding-left:14px;font-size:11.5px;color:var(--fg-muted);line-height:1.7;}
+.lead::before{content:"";position:absolute;left:0;top:.72em;width:9px;height:1px;background:var(--fg-subtle);}
+.lead::after{content:"";position:absolute;left:0;top:.72em;width:4px;height:4px;
+  border-left:1px solid var(--fg-subtle);border-bottom:1px solid var(--fg-subtle);
+  transform:translateY(-2.5px) rotate(45deg);}
+.lead b{color:var(--fg-2);}
+/* 尺寸链: 端部刻度 + 数值线 */
+.dim{position:relative;height:1px;background:var(--border-strong);margin:18px 0 14px;}
+.dim::before,.dim::after{content:"";position:absolute;top:-4px;width:1px;height:9px;background:var(--border-strong);}
+.dim::before{left:0;} .dim::after{right:0;}
+/* 星级图标复用 .dim 时不能吃"尺寸线"的 1px 高与两端刻度：星形在 ::before 上 */
+i.fa-star.dim{position:static;display:inline-block;width:auto;height:auto;background:none;
+  margin:0 1px;border:0;vertical-align:middle;}
+i.fa-star.dim::before{content:"\f005";font-family:"Font Awesome 7 Free";font-weight:inherit;
+  position:static;display:inline-block;width:auto;height:auto;background:none;border:0;transform:none;margin:0;}
+i.fa-star.dim::after{display:none!important;}
+.dim.tight{margin:6px 0 12px;}
+.note-i{color:var(--fg-subtle);margin-right:5px;}
+
+/* ===== 图纸(sheet): 面板根 ===== */
+.sheet{position:relative;background:var(--surface);border:1px solid var(--border);margin-bottom:0;
+  box-shadow:3px 3px 0 rgba(3,10,16,.55);}
+/* 四角对位标记(L 形直角刻度, 8 层渐变拼出, 无额外 DOM) */
+.sheet::before{content:"";position:absolute;inset:-1px;pointer-events:none;
+  --mk:rgba(232,238,240,.42);
+  background:
+    linear-gradient(var(--mk),var(--mk)) 0 0/9px 1px no-repeat,
+    linear-gradient(var(--mk),var(--mk)) 0 0/1px 9px no-repeat,
+    linear-gradient(var(--mk),var(--mk)) 100% 0/9px 1px no-repeat,
+    linear-gradient(var(--mk),var(--mk)) 100% 0/1px 9px no-repeat,
+    linear-gradient(var(--mk),var(--mk)) 0 100%/9px 1px no-repeat,
+    linear-gradient(var(--mk),var(--mk)) 0 100%/1px 9px no-repeat,
+    linear-gradient(var(--mk),var(--mk)) 100% 100%/9px 1px no-repeat,
+    linear-gradient(var(--mk),var(--mk)) 100% 100%/1px 9px no-repeat;}
+.sheet-head{display:flex;align-items:center;gap:11px;padding:11px 18px 11px 15px;
+  background:var(--surface-2);border-bottom:1px solid var(--border);}
+.sheet-head .t{font-size:15px;font-weight:700;letter-spacing:.03em;color:var(--fg);min-width:0;
+  display:inline-flex;align-items:center;gap:9px;}
+.sheet-head .t i{color:var(--accent);font-size:13px;}
+.sheet-body{padding:18px;}
+.sheet-body>p{font-size:13.5px;color:var(--fg-muted);line-height:1.85;margin:0 0 12px;}
+.sheet-body>p:last-child{margin-bottom:0;}
+.sheet-body>p b{color:var(--fg-2);font-weight:700;}
+
+/* 图签栏(右下角小格: 图号 / 比例 / 张次) */
+.tb{display:flex;align-items:stretch;border:1px solid var(--border-strong);margin-left:auto;flex:none;}
+.tb-i{padding:5px 9px 6px;border-left:1px solid var(--border-strong);min-width:72px;}
+.tb-i:first-child{border-left:0;}
+.tb-k{display:block;font-family:var(--latin);font-size:11px;font-weight:700;line-height:1.4;
+  text-transform:uppercase;letter-spacing:.12em;color:var(--fg-subtle);}
+.tb-v{display:block;font-family:var(--mono);font-size:11px;line-height:1.4;color:var(--fg-2);}
+
+/* ===== 按钮 ===== */
+button{font-family:inherit;border-radius:0;}
+.btn{position:relative;display:inline-flex;align-items:center;justify-content:center;gap:8px;
+  padding:10px 18px;font-size:13.5px;font-weight:700;letter-spacing:.04em;
+  background:var(--surface-3);color:var(--fg);border:1px solid var(--border-strong);
+  border-radius:0;cursor:pointer;
+  transition:background var(--dur-fast) var(--ease),color var(--dur-fast) var(--ease),border-color var(--dur-fast) var(--ease);}
+.btn:hover{background:#1b4869;border-color:var(--fg-subtle);}
+.btn:active{background:var(--surface-2);}
+.btn i{font-size:12.5px;opacity:.92;}
+/* 主动作: 象牙白实底(图纸上的"最终确认"标记) */
+.btn-primary{background:var(--fg);color:var(--ink);border-color:var(--fg);}
+.btn-primary:hover{background:#fff;color:var(--ink);border-color:#fff;}
+.btn-primary i{color:var(--ink);opacity:1;}
+/* 次动作: 蓝晒高亮描边 */
+.btn-accent{background:transparent;color:var(--accent);border-color:var(--accent);}
+.btn-accent:hover{background:var(--accent-sub);border-color:var(--accent-2);color:var(--accent-2);}
+/* 危险: 红蜡笔 */
+.btn-danger{background:transparent;color:var(--red-2);border-color:rgba(255,91,71,.55);}
+.btn-danger:hover{background:rgba(255,91,71,.13);border-color:var(--red-2);color:#ff9d8a;}
+.btn-ghost{background:transparent;color:var(--fg-2);border-color:var(--border);}
+.btn-ghost:hover{background:var(--surface-2);color:var(--fg);border-color:var(--border-strong);}
+.btn-sm{padding:7px 13px;font-size:12.5px;}
+/* 大动作块(旧写法: .ico + .bx > small) */
+.btn-block{padding:12px 16px;justify-content:flex-start;}
+.btn-block .ico{width:30px;height:30px;flex:none;display:flex;align-items:center;justify-content:center;
+  background:var(--surface-2);border:1px solid var(--border);font-size:14px;}
+.btn-block .ico i{font-size:14px;color:var(--accent);opacity:1;}
+.btn-block .bx{flex:1;text-align:left;line-height:1.35;min-width:0;}
+.btn-block .bx small{display:block;font-size:11px;font-weight:400;color:var(--fg-subtle);
+  letter-spacing:0;margin-top:2px;}
+.btn-primary .bx small{color:var(--ink);opacity:.74;}
+.btn-primary .ico{background:rgba(6,32,47,.12);border-color:rgba(6,32,47,.22);}
+.btn-primary .ico i{color:var(--ink);}
+.btn-danger .ico{border-color:rgba(255,91,71,.45);}
+.btn-danger .ico i{color:var(--red-2);}
+.btn-accent .ico i{color:var(--accent);}
+
+/* ===== 图头(masthead) ===== */
+.board{max-width:1400px;margin:0 auto;padding:26px 20px 0;}
+.masthead{position:relative;display:flex;align-items:center;gap:20px;flex-wrap:wrap;
+  padding:18px 20px;background:var(--surface);border:1px solid var(--border);
+  border-top-width:2px;
+  border-image:linear-gradient(to right,var(--fg) 96px,var(--accent) 96px 160px,var(--border) 160px) 2 1 1 1;}
+.masthead .mark{width:50px;height:50px;flex:none;display:flex;align-items:center;justify-content:center;
+  background:var(--inset);border:1px solid var(--border-strong);color:var(--accent);font-size:21px;position:relative;}
+.masthead .mark::after{content:"";position:absolute;right:-4px;bottom:-4px;width:7px;height:7px;background:var(--yellow);}
+.masthead .htxt{flex:1;min-width:250px;}
+.masthead h1{margin:0;font-size:30px;line-height:1.2;font-weight:800;letter-spacing:.01em;color:var(--fg);}
+.masthead h1 span{color:var(--fg-subtle);font-weight:400;}
+.masthead .hen{font-family:var(--latin);font-size:11px;font-weight:700;text-transform:uppercase;
+  letter-spacing:.2em;color:var(--fg-subtle);margin-top:5px;font-variant-numeric:lining-nums;}
+.masthead .hmeta{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:11px;}
+.tagchip{display:inline-flex;align-items:center;gap:6px;padding:3px 9px;font-size:11px;font-weight:700;
+  letter-spacing:.05em;background:transparent;border:1px solid var(--border);color:var(--fg-muted);}
+.tagchip i{font-size:11px;color:var(--accent);}
+.tagchip.y i{color:var(--yellow);}
+.tagchip.r i{color:var(--red-2);}
+.mutil{display:flex;align-items:center;gap:8px;flex-wrap:wrap;flex:none;}
+.purse{display:flex;flex-direction:column;align-items:flex-end;padding:4px 12px;background:var(--inset);
+  border:1px solid var(--border-strong);border-left-width:2px;border-left-color:var(--yellow);}
+.purse .pk{font-family:var(--latin);font-size:11px;font-weight:700;text-transform:uppercase;
+  letter-spacing:var(--track-overline);color:var(--fg-subtle);}
+.purse .pv{display:flex;align-items:center;gap:6px;font-family:var(--latin-label);font-size:18px;
+  font-weight:700;color:var(--yellow);line-height:1.2;font-variant-numeric:lining-nums tabular-nums;}
+.purse .pv i{font-size:12px;}
+/* 索引条(标注式航线) */
+.crumb{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:11.5px;color:var(--fg-subtle);
+  margin-top:12px;padding:10px 4px 0;border-top:1px dashed var(--border-soft);}
+.crumb b{display:inline-flex;align-items:center;gap:6px;color:var(--fg-2);font-weight:700;}
+.crumb b i{color:var(--accent);font-size:11px;font-weight:400;}
+.crumb .ar{color:var(--fg-subtle);font-size:11px;opacity:.8;}
+.crumb .tail{margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--fg-subtle);}
+
+/* ===== 布局 ===== */
+main{max-width:1400px;margin:0 auto;padding:20px 20px 44px;}
+.layout{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.12fr);gap:16px;align-items:start;}
+.col{display:flex;flex-direction:column;gap:16px;min-width:0;}
+
+/* ===== 地图概况 ===== */
+.mapframe{position:relative;padding:9px;background:var(--inset);border:1px solid var(--border-strong);}
+.mapframe::before,.mapframe::after{content:"";position:absolute;pointer-events:none;}
+.mapframe::before{left:-1px;top:-1px;width:16px;height:16px;
+  border-left:2px solid var(--fg-2);border-top:2px solid var(--fg-2);}
+.mapframe::after{right:-1px;bottom:-1px;width:16px;height:16px;
+  border-right:2px solid var(--fg-2);border-bottom:2px solid var(--fg-2);}
+#mapPrev{display:block;width:100%;background:#04101b;}
+.north{position:absolute;right:18px;top:18px;width:24px;height:32px;pointer-events:none;z-index:1;}
+.north::before{content:"";position:absolute;left:50%;top:0;transform:translateX(-50%);width:0;height:0;
+  border-left:5px solid transparent;border-right:5px solid transparent;border-bottom:17px solid var(--fg-2);}
+.north::after{content:"N";position:absolute;left:50%;bottom:0;transform:translateX(-50%);
+  font-family:var(--latin);font-size:11px;font-weight:700;letter-spacing:.1em;color:var(--fg-muted);}
+.scalewrap{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:8px;}
+.scalebar{position:relative;flex:none;width:120px;height:7px;border:1px solid var(--border-strong);
+  background:repeating-linear-gradient(90deg,var(--fg-2) 0 15px,transparent 15px 30px);}
+.scalewrap .sc{font-family:var(--mono);font-size:11px;color:var(--fg-subtle);letter-spacing:.02em;}
+.scalewrap .sc.right{margin-left:auto;font-family:var(--latin);text-transform:uppercase;letter-spacing:var(--track-caps);}
+.brief{margin-top:14px;}
+.brief p{font-size:12.5px;color:var(--fg-muted);line-height:1.85;margin:0 0 9px;}
+.brief p:last-child{margin-bottom:0;}
+.brief b{color:var(--fg-2);}
+.side-red{color:var(--red-side);font-weight:700;}
+.side-blue{color:var(--blue-side);font-weight:700;}
+
+/* ===== 标注行(键值): .krow > .kk + .kv ===== */
+.krow{display:flex;gap:12px;align-items:flex-start;padding:9px 0;border-bottom:1px dashed var(--border-soft);}
+.krow:last-child{border-bottom:0;}
+.krow .kk{flex:none;min-width:64px;height:22px;display:inline-flex;align-items:center;justify-content:center;gap:4px;
+  padding:0 8px;font-size:11.5px;line-height:1;font-weight:700;
+  background:transparent;border:1px solid var(--border-strong);color:var(--fg-2);}
+.krow .kk i{font-size:11px;color:var(--fg-subtle);}
+.krow .kk.red{color:var(--red-side);border-color:rgba(255,138,122,.45);}
+.krow .kk.blue{color:var(--blue-side);border-color:rgba(111,192,255,.45);}
+.krow .kk.accent{color:var(--accent);border-color:var(--accent-line);}
+.krow .kk.yellow{color:var(--yellow);border-color:rgba(255,195,77,.45);}
+.krow .kv{flex:1;min-width:0;font-size:13px;color:var(--fg-muted);line-height:1.8;}
+.krow .kv b{color:var(--fg-2);font-weight:700;font-family:var(--mono);font-variant-numeric:tabular-nums;}
+.krow .kv b.hi{color:var(--accent);}
+.krow .kv b.gold{color:var(--yellow);}
+
+/* ===== 尺寸链式指标格 ===== */
+.statgrid{position:relative;display:grid;grid-template-columns:repeat(auto-fit,minmax(118px,1fr));gap:1px;
+  background:var(--border);border:1px solid var(--border);}
+.statgrid::after{content:"";position:absolute;left:0;right:0;bottom:-13px;height:9px;pointer-events:none;
+  background:
+    linear-gradient(var(--border-strong),var(--border-strong)) 0 8px/100% 1px no-repeat,
+    linear-gradient(var(--border-strong),var(--border-strong)) 0 0/1px 9px no-repeat,
+    linear-gradient(var(--border-strong),var(--border-strong)) 100% 0/1px 9px no-repeat;}
+.stat{position:relative;background:var(--surface);padding:10px 13px 11px;min-width:0;}
+.stat .k{display:flex;align-items:center;gap:6px;font-family:var(--latin);font-size:11px;font-weight:700;
+  text-transform:uppercase;letter-spacing:.14em;color:var(--fg-subtle);}
+.stat .k i{font-size:11px;color:var(--fg-muted);}
+.stat .v{font-family:var(--mono);font-size:18px;font-weight:700;line-height:1.25;margin-top:4px;
+  color:var(--fg);letter-spacing:0;font-variant-numeric:tabular-nums;}
+.stat.rank .v{font-size:17px;color:var(--accent);font-family:var(--latin-label);}
+.stat.gold .v{color:var(--yellow);}
+.stat.gold .k i{color:var(--yellow);}
+.stat.rank::before{content:"";position:absolute;left:0;top:0;bottom:0;width:2px;background:var(--accent);}
+.statgrid-gap{margin-bottom:26px;}
+
+/* ===== 装备选择 ===== */
+.weaponRow{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
+.wbtn{position:relative;display:flex;flex-direction:column;align-items:flex-start;gap:3px;
+  padding:10px 12px;background:var(--surface-2);color:var(--fg-muted);border:1px solid var(--border);
+  border-radius:0;cursor:pointer;text-align:left;
+  transition:background var(--dur-fast) var(--ease),color var(--dur-fast) var(--ease),border-color var(--dur-fast) var(--ease);}
+.wbtn:hover{background:var(--surface-3);color:var(--fg);}
+.wbtn i.wi{font-size:13px;color:var(--accent);margin-bottom:2px;}
+.wbtn .wn{font-size:13px;font-weight:700;color:var(--fg-2);letter-spacing:.02em;}
+.wbtn small{font-size:11px;color:var(--fg-subtle);}
+/* 选中 = 象牙白实底(当前武器) */
+.wbtn.sel{background:var(--fg);border-color:var(--fg);}
+.wbtn.sel .wn{color:var(--ink);}
+.wbtn.sel i.wi{color:var(--ink);}
+.wbtn.sel small{color:var(--ink);opacity:.66;}
+.wbtn.sel:hover{background:#fff;}
+.wbtn>.fa-solid,.wbtn>.fas{display:block;font-size:13px;color:var(--accent);margin-bottom:2px;}
+.weaponInfo{margin-top:12px;font-size:12px;color:var(--fg-muted);line-height:1.8;
+  background:var(--inset);border:1px solid var(--border-soft);border-left:2px solid var(--accent);
+  padding:9px 12px;min-height:52px;}
+.weaponInfo b{color:var(--accent);font-weight:700;}
+
+/* ===== 难度 / 地图选择 ===== */
+.diffRow{display:flex;gap:8px;flex-wrap:wrap;}
+.diffBtn{position:relative;flex:1 1 0;min-width:88px;display:flex;flex-direction:column;align-items:center;
+  gap:2px;padding:9px 8px;background:var(--surface-2);color:var(--fg-muted);border:1px solid var(--border);
+  border-radius:0;cursor:pointer;
+  transition:background var(--dur-fast) var(--ease),color var(--dur-fast) var(--ease),border-color var(--dur-fast) var(--ease);}
+.diffBtn:hover{background:var(--surface-3);color:var(--fg);}
+.diffBtn i{font-size:12px;color:var(--fg-subtle);}
+.diffBtn .dn{font-size:12.5px;font-weight:700;color:var(--fg-2);letter-spacing:.02em;}
+.diffBtn small{font-size:11px;color:var(--fg-subtle);letter-spacing:0;text-align:center;}
+.diffBtn.sel{background:var(--fg);border-color:var(--fg);}
+.diffBtn.sel i,.diffBtn.sel .dn{color:var(--ink);}
+.diffBtn.sel small{color:var(--ink);opacity:.66;}
+.diffBtn.sel:hover{background:#fff;}
+
+/* ===== 升级强化行 ===== */
+.upRow{display:flex;align-items:center;gap:11px;padding:8px 0;border-bottom:1px dashed var(--border-soft);font-size:12.5px;}
+.upRow:last-child{border-bottom:0;}
+.upRow.max{opacity:.72;}
+.upIcon{width:30px;height:30px;flex:none;display:flex;align-items:center;justify-content:center;
+  background:var(--inset);border:1px solid var(--border-strong);color:var(--accent);font-size:13.5px;}
+.upInfo{flex:1;line-height:1.45;min-width:0;}
+.upInfo .nm{color:var(--fg);font-weight:700;letter-spacing:.02em;}
+.upInfo .ds{font-size:11px;color:var(--fg-subtle);margin-top:1px;}
+.pips{flex:none;min-width:50px;text-align:center;font-size:11px;letter-spacing:3px;color:var(--yellow);}
+.pips .off{color:var(--fg-subtle);}
+/* 已满级 = 象牙白实底(完成标记) + 点划线行尾 */
+.upRow.max .upIcon{background:var(--fg);border-color:var(--fg);color:var(--ink);}
+.upRow.max .upInfo .nm{color:var(--fg-2);border-bottom:1px dashed var(--border-strong);}
+.upBtn{flex:none;min-width:54px;padding:5px 11px;font-size:12px;font-weight:700;background:var(--inset);
+  color:var(--yellow);border:1px solid rgba(255,195,77,.5);border-radius:0;cursor:pointer;
+  transition:background var(--dur-fast) var(--ease),color var(--dur-fast) var(--ease),border-color var(--dur-fast) var(--ease);}
+.upBtn:hover:not(:disabled){background:rgba(255,195,77,.13);border-color:var(--yellow);}
+.upBtn:disabled{background:transparent;color:var(--fg-subtle);border:1px dashed var(--border);cursor:not-allowed;}
+.upBtn.maxed{background:transparent;color:var(--fg-subtle);border:1px dashed var(--border-strong);cursor:default;}
+
+/* ===== 成就墙 ===== */
+.achFilterRow{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 10px;}
+.fbtn{padding:5px 11px;font-size:11.5px;font-weight:600;background:var(--surface-2);color:var(--fg-muted);
+  border:1px solid var(--border);border-radius:0;cursor:pointer;
+  transition:background var(--dur-fast) var(--ease),color var(--dur-fast) var(--ease);}
+.fbtn:hover{background:var(--surface-3);color:var(--fg);}
+.fbtn.sel{background:var(--fg);color:var(--ink);border-color:var(--fg);font-weight:700;}
+.fbtn.sel:hover{background:#fff;}
+#achFilter{margin:0 0 10px;}
+.achRow{display:flex;align-items:flex-start;gap:9px;padding:7px 0;border-bottom:1px dashed var(--border-soft);font-size:12px;}
+.achRow:last-child{border-bottom:0;}
+/* 未解锁 = 点划线空框; 已解锁 = 象牙白实底 */
+.achRow .ac{width:24px;height:24px;flex:none;display:flex;align-items:center;justify-content:center;
+  background:transparent;border:1px dashed var(--border-strong);color:var(--fg-subtle);font-size:11px;}
+.achRow .ai{flex:1;line-height:1.45;min-width:0;}
+.achRow .ai .an{color:var(--fg-muted);font-weight:600;}
+.achRow .ai .ad{font-size:11px;color:var(--fg-subtle);opacity:.85;margin-top:1px;}
+.achRow.on .ai .an{color:var(--fg);}
+.achRow.on .ai .ad{color:var(--fg-muted);opacity:1;}
+.achRow.on .ac{background:var(--fg);border:1px solid var(--fg);color:var(--ink);}
+.achRow .aSt{flex:none;font-size:11px;font-weight:700;color:var(--green);letter-spacing:.06em;align-self:center;}
+
+/* ===== 每日挑战纪录 ===== */
+#dlToday{font-size:11.5px;color:var(--yellow);margin:0 0 10px;line-height:1.7;
+  display:flex;gap:7px;align-items:flex-start;}
+#dlToday::before{content:"\f073";font-family:"Font Awesome 7 Free";font-weight:900;color:var(--yellow);
+  font-size:11px;margin-top:4px;flex:none;}
+.dlRow{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 0;
+  border-bottom:1px dashed var(--border-soft);font-size:12px;color:var(--fg-muted);}
+.dlRow:last-child{border-bottom:0;}
+.dlRow .dlD{color:var(--fg-2);font-weight:600;font-family:var(--mono);font-size:12px;min-width:80px;}
+.dlRow b{color:var(--yellow);font-weight:600;letter-spacing:2px;}
+.dlRow .dlT{color:var(--fg-subtle);font-size:11.5px;font-family:var(--mono);}
+/* 未挑战 = 点划线 + 压暗 */
+.dlRow.none{opacity:.62;}
+.dlRow.none .dlD{color:var(--fg-subtle);font-weight:400;border-bottom:1px dashed var(--border-strong);}
+
+/* ===== 军衔晋升 ===== */
+.rankBtn{flex:none;padding:4px 13px;font-size:11.5px;font-weight:700;background:transparent;
+  color:var(--yellow);border:1px solid rgba(255,195,77,.45);border-radius:0;cursor:pointer;
+  transition:background var(--dur-fast) var(--ease),border-color var(--dur-fast) var(--ease);}
+.rankBtn:hover:not(:disabled){background:rgba(255,195,77,.13);border-color:var(--yellow);}
+.rankBtn:disabled{color:var(--fg-subtle);border:1px dashed var(--border);cursor:not-allowed;}
+.rankInfo{font-size:11px;color:var(--fg-subtle);line-height:1.8;margin:8px 0 0;}
+.rankInfo b{color:var(--fg-2);}
+/* ===== 军衔印章列(晋升 = 盖钢印) ===== */
+.stampRow{display:flex;flex-wrap:wrap;gap:5px;margin:7px 0 2px;min-height:22px;}
+.stampRow .stamp{position:relative;font-family:var(--latin-label);font-size:11px;font-weight:700;
+  letter-spacing:.06em;color:var(--red-2);border:2px solid var(--red-2);padding:2px 6px;
+  background:rgba(255,91,71,.06);transform:rotate(-3deg);}
+.stampRow .stamp.now{color:var(--yellow);border-color:var(--yellow);background:rgba(255,195,77,.10);}
+/* 新盖下的那一枚: 一次性的"盖章"动作(落下 → 微微回弹) */
+.stampRow .stamp.fresh{animation:stampIn .45s var(--ease) 1 both;}
+@keyframes stampIn{
+  0%{transform:rotate(-15deg) scale(2.1);opacity:0;}
+  55%{transform:rotate(-4deg) scale(.93);opacity:1;}
+  100%{transform:rotate(-3deg) scale(1);opacity:1;}}
+
+/* ===== 档案槽位 ===== */
+#slotBtns{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;}
+.slotBtn{padding:4px 11px;font-size:11.5px;font-weight:600;background:var(--surface-2);color:var(--fg-muted);
+  border:1px solid var(--border);border-radius:0;cursor:pointer;
+  transition:background var(--dur-fast) var(--ease),color var(--dur-fast) var(--ease);}
+.slotBtn:hover{background:var(--surface-3);color:var(--fg);}
+.slotBtn.sel{background:var(--fg);color:var(--ink);border-color:var(--fg);font-weight:700;}
+.slotBtn.sel:hover{background:#fff;}
+
+/* ===== 行动指令 ===== */
+.actions{grid-column:1/-1;}
+.actions .spread{display:flex;gap:8px;flex-wrap:wrap;}
+.actions .spread+.spread{margin-top:8px;}
+.actions .note{font-size:11.5px;color:var(--fg-subtle);line-height:1.8;margin:12px 0 0;
+  padding-top:10px;border-top:1px dashed var(--border-soft);}
+.actions .note i{margin-right:5px;}
+/* v3.1: 「加密导出」开关 —— 与图纸风格一致的直角细框 + 原生 checkbox */
+.encToggle{display:inline-flex;align-items:center;gap:7px;height:30px;padding:0 11px;cursor:pointer;
+  border:1px solid var(--border-strong);background:var(--surface-2);color:var(--fg-2);
+  font-size:11.5px;user-select:none;}
+.encToggle:hover{border-color:var(--accent);color:var(--fg);}
+.encToggle input{width:13px;height:13px;margin:0;accent-color:var(--accent);cursor:pointer;}
+.encToggle.on{border-color:var(--accent);color:var(--fg);}
+/* ===== v3.2: 账户模态框样式(主页与整备大厅共用同一份) ===== */
+/* 主页/整备大厅原本没有 .overlay/.card/.hidden 这些类(它们不是覆盖层式页面), 所以模态框自带骨架 */
+#acctOverlay{position:fixed;inset:0;z-index:40;display:flex;align-items:center;justify-content:center;
+  padding:22px;overflow:auto;background:rgba(4,12,20,.82);}
+#acctOverlay.hidden{display:none!important;}
+#acctOverlay .acctCard{position:relative;width:min(520px,92vw);margin:auto;padding:22px 26px 24px;
+  background:var(--surface-2);border:1px solid var(--border-strong);border-top-width:2px;
+  box-shadow:0 18px 44px rgba(0,0,0,.5);}
+#acctOverlay .acctTb{display:flex;align-items:stretch;margin:0 0 14px;}
+#acctOverlay h1{margin:0 0 12px;font-size:19px;font-weight:800;letter-spacing:.02em;color:var(--fg);}
+#acctOverlay h1 i{color:var(--accent);margin-right:8px;}
+.acctCard{width:min(520px,92vw);}
+.acctStat{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--fg-muted);margin:0 0 12px;line-height:1.65;}
+.acctStat b{color:var(--fg);}
+.acctList{display:flex;flex-direction:column;gap:6px;margin:0 0 12px;}
+.acctRow{display:flex;align-items:center;gap:9px;padding:9px 11px;cursor:pointer;text-align:left;
+  border:1px solid var(--border-strong);background:var(--surface-2);color:var(--fg-2);font-size:12.5px;}
+.acctRow:hover{border-color:var(--accent);color:var(--fg);}
+.acctRow.on{border-color:var(--accent);background:var(--inset);color:var(--fg);}
+.acctRow i{color:var(--fg-subtle);}
+.acctRow.on i{color:var(--accent);}
+.acctRow small{margin-left:auto;color:var(--fg-subtle);font-size:11px;}
+.acctField{display:flex;align-items:center;gap:9px;margin:0 0 9px;}
+.acctField span{width:64px;flex:none;font-size:12px;color:var(--fg-muted);}
+.acctField input{flex:1;min-width:0;height:30px;padding:0 9px;border:1px solid var(--border-strong);
+  background:var(--inset);color:var(--fg);font-size:12.5px;font-family:inherit;}
+.acctField input:focus{outline:none;border-color:var(--accent);}
+.acctActions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;}
+.acctMsg{min-height:18px;font-size:12px;margin:0 0 10px;color:var(--fg-muted);}
+.acctMsg.bad{color:var(--red-2);}
+.acctMsg.ok{color:var(--green);}
+.acctHint{font-size:11.5px;color:var(--fg-subtle);line-height:1.75;margin:10px 0 0;}
+/* ===== v3.2: 本地排行榜样式(主页与整备大厅共用同一份) ===== */
+.bdNote{font-size:11.5px;color:var(--fg-subtle);line-height:1.75;margin:0 0 10px;}
+.bdWrap{display:flex;flex-direction:column;gap:16px;}
+.bdHead{display:flex;align-items:center;gap:8px;font-size:12.5px;font-weight:700;color:var(--fg-2);margin:0 0 8px;}
+.bdCount{margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--fg-subtle);}
+.bdList{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:4px;}
+.bdList li{display:flex;align-items:center;gap:9px;padding:6px 9px;border:1px solid var(--border);background:var(--surface-2);font-size:12px;}
+.bdList li:first-child{border-color:var(--yellow);}
+.bdRank{width:14px;text-align:center;color:var(--fg-subtle);flex:none;}
+.bdList li:first-child .bdRank{color:var(--yellow);}
+.bdWho{width:64px;flex:none;color:var(--fg-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.bdMain{display:flex;align-items:center;gap:8px;flex:1 1 auto;min-width:0;font-family:var(--mono);color:var(--fg);}
+.bdSub{font-size:11px;color:var(--fg-subtle);flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.bdStar{color:var(--yellow);font-size:11px;margin-right:1px;}
+.bdStar.dim{color:var(--border-strong);}
+.bdKill,.bdScore,.bdEvac,.bdBoss{display:inline-flex;align-items:center;gap:4px;color:var(--fg-muted);font-size:11.5px;}
+.bdEvac{color:var(--green);}
+.bdBoss{color:var(--red-2);}
+.bdEmpty{font-size:12px;color:var(--fg-subtle);margin:0;}
+.bdActions{margin-top:10px;}
+.bdStars{display:inline-flex;}
+
+/* ===== 轻提示 ===== */
+.toast{position:fixed;left:50%;top:16px;transform:translateX(-50%);z-index:9;pointer-events:none;
+  display:flex;align-items:center;gap:9px;padding:9px 18px;background:var(--surface-2);
+  border:1px solid var(--border-strong);border-left:2px solid var(--accent);color:var(--fg);
+  font-size:12.5px;font-weight:600;opacity:0;transition:opacity var(--dur-fast) var(--ease);
+  box-shadow:6px 6px 0 rgba(3,10,16,.6);}
+/* 图标由 CSS 伪元素提供: 提示文案仍写在 .toast 的 textContent 里(测试与读屏都读得到) */
+.toast::before{content:"\f05a";font-family:"Font Awesome 7 Free";font-weight:900;
+  color:var(--accent);font-size:12px;}
+.toast.show{opacity:1;}
+
+/* ===== 响应式 ===== */
+@media (max-width:1120px){
+  .layout{grid-template-columns:1fr;}
+  .weaponRow{grid-template-columns:repeat(2,1fr);}
+}
+@media (max-width:639px){
+  .board{padding:14px 12px 0;}
+  main{padding:14px 12px 30px;}
+  .masthead{padding:14px 14px;gap:14px;}
+  .masthead h1{font-size:21px;}
+  .masthead .mark{width:42px;height:42px;font-size:17px;}
+  .masthead .tb{display:none;}
+  .sheet-head{flex-wrap:wrap;gap:9px;}
+  .diffBtn{flex:1 1 40%;}
+  .weaponRow{grid-template-columns:1fr;}
+  .stat .v{font-size:16px;}
+}
+/* 无障碍: 尊重系统"减少动态效果"偏好 */
+@media (prefers-reduced-motion: reduce){
+  .btn,.wbtn,.diffBtn,.fbtn,.slotBtn,.upBtn,.rankBtn,.toast{transition:none;}
+  .stampRow .stamp,.stampRow .stamp.fresh{animation:none;}
+}
+
+/* ============================================================================
+   移动端重写 · MOBILE FIELD CONSOLE
+   ----------------------------------------------------------------------------
+   手机端不再把两栏图纸硬挤成一栏：改成「一张整备摘要 + 四个拇指分页」。
+   桌面仍保留完整的两栏作业图；本层只在窄屏接管排布、皮肤与分页。
+   ============================================================================ */
+.mob-topbar,.mob-hub-hero,.mob-hub-go,.mob-nav{display:none;}
+@media (max-width:960px){
+  *,*::before,*::after{box-sizing:border-box;}
+  :root{--mob-r:18px;--mob-card:#0a1e2c;--mob-card-2:#0d2739;--mob-line:rgba(94,203,255,.16);--mob-line-2:rgba(232,238,240,.10);}
+  html{scroll-behavior:smooth;}
+  body{
+    font-size:14px;line-height:1.62;
+    padding-bottom:calc(142px + env(safe-area-inset-bottom));
+    background-color:#050f18;
+    background-image:
+      radial-gradient(420px 300px at 84% -8%,rgba(94,203,255,.16),transparent 72%),
+      radial-gradient(300px 260px at -6% 18%,rgba(255,195,77,.06),transparent 70%),
+      repeating-linear-gradient(90deg,rgba(232,238,240,.028) 0 1px,transparent 1px 24px),
+      repeating-linear-gradient(0deg,rgba(232,238,240,.028) 0 1px,transparent 1px 24px),
+      linear-gradient(180deg,#081724 0%,#050f18 52%,#030a10 100%);
+    background-attachment:scroll;
+  }
+  .board{display:none;}
+
+  .mob-topbar{
+    display:flex;align-items:center;justify-content:space-between;gap:10px;
+    position:sticky;top:0;z-index:36;
+    padding:calc(8px + env(safe-area-inset-top)) 14px 8px;
+    background:rgba(5,15,24,.88);border-bottom:1px solid var(--mob-line);
+    -webkit-backdrop-filter:blur(18px);backdrop-filter:blur(18px);
+  }
+  .mob-brand{display:flex;align-items:center;gap:10px;min-width:0;text-decoration:none;color:var(--fg);}
+  .mob-mark{width:36px;height:36px;flex:none;display:flex;align-items:center;justify-content:center;
+    border:1px solid rgba(94,203,255,.5);border-radius:11px;color:var(--accent);font-size:13px;
+    background:linear-gradient(145deg,rgba(94,203,255,.18),rgba(4,16,27,.9));}
+  .mob-bt{display:flex;flex-direction:column;min-width:0;line-height:1.15;}
+  .mob-bt b{font-size:17px;font-weight:800;letter-spacing:.02em;}
+  .mob-bt small{font-family:var(--latin);font-size:8.5px;font-weight:700;letter-spacing:.16em;
+    color:var(--fg-subtle);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .mob-topmeta{display:flex;align-items:center;gap:6px;flex:none;}
+  .mob-pill{display:inline-flex;align-items:center;gap:5px;height:30px;padding:0 9px;
+    border:1px solid var(--mob-line);border-radius:9px;background:rgba(10,30,44,.7);
+    font-size:10.5px;font-weight:700;color:var(--fg-2);}
+  .mob-pill i{font-size:10px;color:var(--accent);}
+  .mob-pill.gold{border-color:rgba(255,195,77,.28);}
+  .mob-pill.gold i,.mob-pill.gold b{color:var(--yellow);}
+  .mob-pill.gold b{font-family:var(--mono);font-variant-numeric:tabular-nums;}
+  .mob-iconbtn{width:38px;height:38px;flex:none;display:inline-flex;align-items:center;justify-content:center;
+    border:1px solid var(--mob-line);border-radius:11px;background:rgba(10,30,44,.7);
+    color:var(--fg-2);font-size:13px;}
+  .mob-iconbtn:active{transform:scale(.94);background:var(--surface-3);}
+
+  main{padding:12px 14px 10px;max-width:none;}
+  .mob-hub-hero{display:block;position:relative;overflow:hidden;margin:0 0 12px;
+    padding:16px 15px 14px;border:1px solid var(--mob-line);border-radius:24px;
+    background:
+      radial-gradient(240px 160px at 92% 8%,rgba(94,203,255,.2),transparent 70%),
+      linear-gradient(158deg,#103349 0%,#0a2133 46%,#07141f 100%);
+    box-shadow:0 18px 40px rgba(0,0,0,.36),inset 0 1px 0 rgba(255,255,255,.06);}
+  .mob-hub-hero::before{content:"";position:absolute;inset:0;pointer-events:none;opacity:.55;
+    background:
+      repeating-linear-gradient(90deg,transparent 0 31px,rgba(94,203,255,.06) 31px 32px),
+      repeating-linear-gradient(0deg,transparent 0 31px,rgba(94,203,255,.06) 31px 32px);}
+  .mob-hub-hero::after{content:"";position:absolute;right:-38px;top:-38px;width:126px;height:126px;
+    border:1px solid rgba(94,203,255,.24);border-radius:50%;pointer-events:none;
+    box-shadow:0 0 0 22px rgba(94,203,255,.035),0 0 0 44px rgba(94,203,255,.02);}
+  .mob-hero-top{position:relative;display:flex;align-items:center;justify-content:space-between;gap:10px;}
+  .mob-kicker{font-family:var(--latin);font-size:9px;font-weight:700;letter-spacing:.2em;
+    text-transform:uppercase;color:var(--accent);}
+  .mob-live{display:inline-flex;align-items:center;gap:5px;font-size:9.5px;font-weight:700;color:var(--green);}
+  .mob-live i{font-size:6px;}
+  .mob-hub-hero h2{position:relative;margin:9px 0 2px;font-size:31px;line-height:1.05;font-weight:800;
+    letter-spacing:-.02em;}
+  .mob-hub-hero h2 em{font-style:normal;color:var(--accent);}
+  .mob-hub-hero>p{position:relative;margin:0 0 12px;font-size:11.5px;color:var(--fg-muted);}
+  .mob-hub-grid{position:relative;display:grid;grid-template-columns:repeat(3,1fr);gap:1px;
+    border:1px solid var(--mob-line);border-radius:13px;overflow:hidden;background:var(--mob-line);}
+  .mob-hub-grid>div{background:rgba(4,16,27,.55);padding:8px 9px;}
+  .mob-hub-grid span{display:block;font-size:8.5px;font-weight:700;letter-spacing:.08em;
+    color:var(--fg-subtle);text-transform:uppercase;}
+  .mob-hub-grid b{display:block;margin-top:2px;font-size:12px;font-weight:700;color:var(--fg);
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .mob-hub-grid b.gold{color:var(--yellow);font-family:var(--mono);}
+
+  /* 单栏 + 分页 */
+  .layout{display:flex;flex-direction:column;align-items:stretch;gap:10px;}
+  .col{display:contents;}
+  .layout [data-mob]{display:none;}
+  .layout [data-mob].mob-on{display:block;}
+  #secLoadout{order:1;} #secDiff{order:2;} #secMapPick{order:3;} #secMapView{order:4;}
+  #secUpgrade{order:1;} #secStats{order:1;} #secAch{order:2;} #secDaily{order:3;}
+  #secBoard{order:1;} #secActions{order:2;}
+
+  /* 图纸 → 卡片 */
+  .sheet{margin:0;border:1px solid var(--mob-line);border-radius:20px;overflow:hidden;
+    background:linear-gradient(170deg,var(--mob-card),#081722 72%);
+    box-shadow:0 12px 30px rgba(0,0,0,.24);}
+  .sheet::before{display:none;}
+  .sheet-head{padding:12px 14px;background:rgba(13,39,57,.72);border-bottom:1px solid var(--mob-line);}
+  .sheet-head .t{font-size:13px;gap:8px;}
+  .sheet-head .t i{font-size:11px;}
+  .sheet-head .tb{display:none;}
+  .sheet-body{padding:14px;}
+  .sheet-body>p{font-size:11.5px;line-height:1.7;margin-bottom:9px;}
+  .tick{width:3px;height:14px;border-radius:2px;}
+
+  .mapframe{padding:7px;border-radius:14px;border-color:var(--mob-line);background:#04101b;}
+  .mapframe::before,.mapframe::after{width:12px;height:12px;}
+  #mapPrev{width:100%;height:auto;border-radius:8px;}
+  .north{right:12px;top:12px;transform:scale(.9);transform-origin:top right;}
+  .scalewrap{gap:8px;margin-top:7px;}
+  .scalebar{width:100px;height:6px;}
+  .scalewrap .sc{font-size:9.5px;}
+  .scalewrap .sc.right{display:none;}
+  .brief{margin-top:10px;}
+  .brief p{font-size:11.5px;line-height:1.7;margin-bottom:7px;}
+
+  /* 指标 */
+  .statgrid{grid-template-columns:repeat(2,1fr);gap:1px;border-radius:14px;overflow:hidden;
+    border-color:var(--mob-line);background:var(--mob-line);}
+  .statgrid::after{display:none;}
+  .stat{padding:9px 10px;background:var(--mob-card-2);}
+  .stat .k{font-size:8.5px;letter-spacing:.08em;}
+  .stat .v{font-size:18px;margin-top:2px;}
+  .stat.rank .v{font-size:14px;}
+  #stStars .fas.fa-star{color:var(--yellow);}
+  .statgrid-gap{margin-bottom:12px;}
+
+  .krow{display:grid;grid-template-columns:48px 1fr auto;gap:8px;padding:8px 0;align-items:center;}
+  .krow .kk{width:48px;min-width:0;height:20px;padding:0 3px;font-size:9px;}
+  .krow .kv{font-size:11.5px;line-height:1.6;}
+  .krow .kv b{font-size:11.5px;}
+  .rankBtn{min-height:38px;padding:0 12px;border-radius:9px;}
+  .rankInfo{font-size:10px;line-height:1.6;}
+  .stampRow{margin:6px 0 2px;}
+  .stampRow .stamp{font-size:9px;padding:1px 5px;}
+  .overline{font-size:9px;}
+  .dim.tight{margin:4px 0 8px;}
+
+  /* 装备 */
+  .weaponRow{grid-template-columns:repeat(2,1fr);gap:7px;}
+  .wbtn{min-height:82px;padding:10px 11px;border-radius:13px;border-color:var(--mob-line);
+    background:var(--mob-card-2);}
+  .wbtn .wn{font-size:13px;}
+  .wbtn small{font-size:10px;line-height:1.4;}
+  .wbtn i.wi,.wbtn>.fa-solid,.wbtn>.fas{font-size:15px;margin-bottom:3px;}
+  .weaponInfo{margin-top:9px;border-radius:11px;font-size:11px;line-height:1.65;min-height:0;padding:9px 10px;}
+
+  /* 难度 / 地图 */
+  .diffRow{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;}
+  .diffBtn{min-width:0;min-height:64px;padding:8px 4px;border-radius:12px;border-color:var(--mob-line);
+    background:var(--mob-card-2);}
+  .diffBtn .dn{font-size:11.5px;}
+  .diffBtn small{font-size:9px;line-height:1.35;}
+  .diffBtn i{font-size:10px;}
+
+  /* 升级 */
+  #upgradeList{display:flex;flex-direction:column;}
+  .upRow{display:grid;grid-template-columns:34px 1fr auto;grid-template-areas:"i n b" "i p b";
+    gap:0 9px;padding:9px 0;align-items:center;}
+  .upIcon{grid-area:i;width:34px;height:34px;border-radius:10px;font-size:12px;}
+  .upInfo{grid-area:n;}
+  .upInfo .nm{font-size:12px;}
+  .upInfo .ds{font-size:9.5px;line-height:1.45;margin-top:1px;}
+  .pips{grid-area:p;text-align:left;font-size:9px;letter-spacing:2px;min-width:0;margin-top:2px;}
+  .upBtn{grid-area:b;min-width:54px;min-height:40px;padding:0 9px;border-radius:10px;font-size:11px;}
+
+  /* 成就 / 每日 / 榜单 */
+  .achFilterRow{gap:5px;margin-bottom:9px;overflow-x:auto;flex-wrap:nowrap;padding-bottom:2px;scrollbar-width:none;}
+  .achFilterRow::-webkit-scrollbar{display:none;}
+  .fbtn{flex:none;min-height:36px;border-radius:9px;font-size:10.5px;}
+  #achFilter{margin-bottom:9px;}
+  .achRow{gap:8px;padding:8px 0;}
+  .achRow .ac{width:26px;height:26px;border-radius:7px;font-size:10px;}
+  .achRow .ai .an{font-size:11.5px;}
+  .achRow .ai .ad{font-size:9.5px;line-height:1.45;}
+  .achRow .aSt{font-size:9px;}
+  #dlToday{font-size:10px;line-height:1.55;}
+  .dlRow{padding:7px 0;font-size:11px;}
+  .dlRow .dlD{font-size:10.5px;min-width:66px;}
+  .dlRow .dlT{font-size:9.5px;}
+  .bdNote{font-size:10px;line-height:1.6;}
+  .bdList li{display:grid;grid-template-columns:20px 56px 1fr;gap:4px 8px;padding:8px 9px;
+    border-radius:10px;background:var(--mob-card-2);border-color:var(--mob-line);}
+  .bdWho{font-size:10.5px;width:56px;}
+  .bdMain{font-size:10.5px;flex-wrap:wrap;gap:4px 7px;}
+  .bdSub{width:100%;font-size:9px;}
+  .bdActions .btn{width:100%;min-height:44px;border-radius:11px;}
+
+  /* 行动指令 */
+  #secActions #btnGo{display:none;}
+  .actions{grid-column:auto;}
+  .actions .spread{display:flex;flex-direction:column;gap:7px;}
+  .actions .spread+.spread{margin-top:7px;}
+  .actions .btn{width:100%;min-height:48px;justify-content:flex-start;border-radius:12px;font-size:12px;}
+  .actions .btn-block .ico{width:32px;height:32px;border-radius:9px;}
+  .actions .note{font-size:10px;line-height:1.6;}
+  .encToggle{width:100%;height:44px;justify-content:center;border-radius:11px;font-size:11px;}
+  #slotBtns{justify-content:flex-start;gap:5px;}
+  .slotBtn{min-height:36px;border-radius:9px;font-size:10.5px;}
+
+  /* 固定主行动 + 底部导航 */
+  .mob-hub-go{
+    display:flex;align-items:center;justify-content:space-between;gap:10px;
+    position:fixed;left:12px;right:12px;bottom:calc(72px + env(safe-area-inset-bottom));z-index:33;
+    min-height:56px;padding:8px 14px;border:1px solid var(--fg);border-radius:16px;
+    background:var(--fg);color:var(--ink);box-shadow:0 12px 28px rgba(0,0,0,.45);
+    font-family:inherit;text-align:left;
+    transition:transform .12s var(--ease);}
+  .mob-hub-go:active{transform:scale(.98);}
+  .mob-hub-go span{display:flex;flex-direction:column;line-height:1.2;}
+  .mob-hub-go b{font-size:14px;font-weight:800;}
+  .mob-hub-go small{font-size:9.5px;font-weight:600;opacity:.6;margin-top:2px;}
+  .mob-hub-go>i{width:34px;height:34px;display:inline-flex;align-items:center;justify-content:center;
+    border-radius:50%;background:rgba(6,32,47,.12);font-size:12px;}
+  .mob-nav{
+    display:grid;grid-template-columns:repeat(4,1fr);gap:2px;
+    position:fixed;left:0;right:0;bottom:0;z-index:34;
+    padding:6px 10px calc(6px + env(safe-area-inset-bottom));
+    background:rgba(5,15,24,.94);border-top:1px solid var(--mob-line);
+    -webkit-backdrop-filter:blur(20px);backdrop-filter:blur(20px);
+  }
+  .mob-nav-i{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
+    min-height:48px;border:0;border-radius:12px;background:transparent;color:var(--fg-subtle);
+    font-family:inherit;font-size:9.5px;font-weight:600;cursor:pointer;
+    transition:background .15s var(--ease),color .15s var(--ease),transform .12s var(--ease);}
+  .mob-nav-i i{font-size:16px;}
+  .mob-nav-i.is-on{color:var(--accent);background:rgba(94,203,255,.10);}
+  .mob-nav-i:active{transform:scale(.94);}
+
+  .toast{top:calc(56px + env(safe-area-inset-top));max-width:92vw;font-size:11px;padding:8px 13px;
+    border-radius:11px;z-index:38;box-shadow:0 8px 22px rgba(0,0,0,.4);}
+
+  /* 账户弹层 */
+  #acctOverlay{padding:0;align-items:flex-end;z-index:50;}
+  #acctOverlay .acctCard{width:100%;max-width:none;max-height:92dvh;overflow:auto;
+    padding:18px 16px calc(18px + env(safe-area-inset-bottom));border-radius:22px 22px 0 0;
+    border-top-width:2px;}
+  #acctOverlay h1{font-size:18px;}
+  .acctField input{height:44px;font-size:16px;border-radius:9px;}
+  .acctRow{min-height:44px;border-radius:10px;}
+  .acctActions .btn{min-height:44px;flex:1;border-radius:11px;}
+  .acctHint{font-size:10.5px;}
+
+  @media (prefers-reduced-motion: reduce){
+    .mob-hub-go,.mob-nav-i,.wbtn,.diffBtn,.upBtn{transition:none;}
+  }
+}
+@media (min-width:640px) and (max-width:960px){
+  .weaponRow{grid-template-columns:repeat(3,1fr);}
+  .diffRow{grid-template-columns:repeat(5,1fr);}
+  .layout{max-width:720px;margin:0 auto;}
+}
+@media (max-width:960px) and (orientation:landscape) and (max-height:520px){
+  .mob-hub-hero{display:none;}
+  main{padding-top:8px;}
+  .mob-hub-go{min-height:48px;bottom:calc(64px + env(safe-area-inset-bottom));}
+  .mob-hub-go small{display:none;}
+  .mob-hub-go b{font-size:13px;}
+  .mob-hub-go>i{width:30px;height:30px;}
+  .weaponRow{grid-template-columns:repeat(3,1fr);}
+  .diffRow{grid-template-columns:repeat(5,1fr);}
+  .layout{max-width:none;}
+}
+</style>
+</head>
+<body>
+<noscript><p style="margin:16px;font-size:14px;">整备大厅需要启用 JavaScript 才能运行（纯本地，无需联网）。</p></noscript>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<!-- 移动端顶部终端条（桌面隐藏） -->
+<div class="mob-topbar" id="mobHubTop">
+  <a class="mob-brand" href="../index.html" aria-label="返回主页">
+    <span class="mob-mark"><i class="fas fa-arrow-left"></i></span>
+    <span class="mob-bt"><b>整备大厅</b><small id="mobHubCrumb">LOADOUT / BR-10</small></span>
+  </a>
+  <div class="mob-topmeta">
+    <span class="mob-pill gold"><i class="fas fa-coins"></i><b id="mobHubPts">0</b></span>
+    <button class="mob-iconbtn" type="button" data-mob-click="btnHome" aria-label="主页"><i class="fas fa-house"></i></button>
+  </div>
+</div>
+
+<header class="board">
+  <div class="masthead">
+    <div class="mark"><i class="fas fa-helmet-safety"></i></div>
+    <div class="htxt">
+      <h1>交火<span> · </span>整备大厅</h1>
+      <div class="hen">Crossfire · Loadout Hall</div>
+      <div class="hmeta">
+        <span class="tagchip"><i class="fas fa-gun"></i>装备配置</span>
+        <span class="tagchip r"><i class="fas fa-gauge-high"></i>威胁等级</span>
+        <span class="tagchip"><i class="fas fa-map-location-dot"></i>作业区域</span>
+        <span class="tagchip y"><i class="fas fa-arrow-trend-up"></i>18 项永久强化</span>
+        <span class="tagchip y"><i class="fas fa-ranking-star"></i>军衔晋升</span>
+      </div>
+    </div>
+    <div class="mutil">
+      <div class="purse">
+        <span class="pk">Military Points</span>
+        <span class="pv"><i class="fas fa-coins"></i><span id="pts">军功点 0</span></span>
+      </div>
+      <button class="btn btn-ghost btn-sm" id="btnHome"><i class="fas fa-house"></i>主页</button>
+    </div>
+    <div class="tb">
+      <div class="tb-i"><span class="tb-k">DWG. 图号</span><span class="tb-v">BR-10</span></div>
+      <div class="tb-i"><span class="tb-k">SCALE 比例</span><span class="tb-v">1:100</span></div>
+      <div class="tb-i"><span class="tb-k">REV. 版次</span><span class="tb-v">v3.5.1</span></div>
+      <div class="tb-i"><span class="tb-k">SHEET 张次</span><span class="tb-v">02/04</span></div>
+    </div>
+  </div>
+
+  <div class="crumb">
+    <b><i class="fas fa-clipboard-list"></i>任务简报</b><i class="fas fa-chevron-right ar"></i>
+    <b><i class="fas fa-gun"></i>装备配置</b><i class="fas fa-chevron-right ar"></i>
+    <b><i class="fas fa-arrow-trend-up"></i>升级强化</b><i class="fas fa-chevron-right ar"></i>
+    <b><i class="fas fa-chart-line"></i>战绩统计</b>
+    <span class="tail">CFG. 配置自动写入对局 · 本页纯本地</span>
+  </div>
+</header>
+
+<main>
+<!-- 移动端整备摘要（桌面隐藏） -->
+<section class="mob-hub-hero" aria-label="整备摘要">
+  <div class="mob-hero-top">
+    <span class="mob-kicker">Loadout / Ready</span>
+    <span class="mob-live"><i class="fas fa-circle"></i>本机存档</span>
+  </div>
+  <h2>整备<em>完成</em></h2>
+  <p>检查装备、难度与永久强化，然后出发。</p>
+  <div class="mob-hub-grid">
+    <div><span>军衔</span><b id="mobHubRank">列兵</b></div>
+    <div><span>军功点</span><b class="gold" id="mobHubPts2">0</b></div>
+    <div><span>主武器</span><b id="mobHubWeapon">突击步枪</b></div>
+  </div>
+</section>
+
+<div class="layout">
+  <!-- ================= 左栏 ================= -->
+  <div class="col">
+
+    <!-- 地图概况 -->
+    <section class="sheet mob-on" id="secMapView" data-mob="action">
+      <div class="sheet-head">
+        <span class="tick"></span>
+        <span class="t"><i class="fas fa-map-location-dot"></i>地图概况</span>
+        <span class="tb">
+          <div class="tb-i"><span class="tb-k">DWG. 图号</span><span class="tb-v">BR-11</span></div>
+          <div class="tb-i"><span class="tb-k">SCALE 比例</span><span class="tb-v">1:100</span></div>
+          <div class="tb-i"><span class="tb-k">SHEET 张次</span><span class="tb-v">02/04</span></div>
+        </span>
+      </div>
+      <div class="sheet-body">
+        <div class="mapframe">
+          <div class="north"></div>
+          <canvas id="mapPrev" width="480" height="200"></canvas>
+        </div>
+        <div class="scalewrap">
+          <span class="scalebar"></span>
+          <span class="sc">0 · 5 · 10 m</span>
+          <span class="sc right">Plan Sheet · 户型图示意</span>
+        </div>
+        <div class="brief">
+          <p><span class="side-red">红方</span> 守左户，<span class="side-blue">蓝方</span> 守右户，在中央<b>电梯厅/公共走廊</b>交火。一梯两户板式住宅：北侧三卧贴外窗，0.8m 内走廊串起卧室门与卫生间门，厨房独立门连餐厅，客厅与餐厅敞通、东端推拉门进阳台，中央核心筒（楼梯间＋实心电梯井＋电梯厅）不可进入。</p>
+          <p>另有<b>仓库</b>（装卸月台＋背靠背双深货架＋3m 叉车巷道）、<b>工厂</b>（原料库→冲压→焊接→装配→质检→成品→发货）、<b>写字楼</b>（核心筒＋1.6m 中央走廊＋南北办公单元）与<b>地下车库</b>（垂直车位＋单行车道）：右侧「地图」面板选中即带入对局。肃清全部敌人获胜，地图散落各类补给。</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 战绩 + 累计统计 -->
+    <section class="sheet" id="secStats" data-mob="stats">
+      <div class="sheet-head">
+        <span class="tick warn"></span>
+        <span class="t"><i class="fas fa-ranking-star" style="color:var(--yellow);"></i>战绩</span>
+        <span class="tb">
+          <div class="tb-i"><span class="tb-k">DWG. 图号</span><span class="tb-v">BR-12</span></div>
+          <div class="tb-i"><span class="tb-k">REC. 记录</span><span class="tb-v">LOCAL</span></div>
+          <div class="tb-i"><span class="tb-k">SHEET 张次</span><span class="tb-v">02/04</span></div>
+        </span>
+      </div>
+      <div class="sheet-body">
+        <div class="statgrid statgrid-gap">
+          <div class="stat rank"><div class="k"><i class="fas fa-ranking-star"></i>军衔 / Rank</div><div class="v" id="stRank">列兵</div></div>
+          <div class="stat"><div class="k"><i class="fas fa-trophy"></i>胜利</div><div class="v" id="stWins">0</div></div>
+          <div class="stat"><div class="k"><i class="fas fa-skull"></i>失败</div><div class="v" id="stLosses">0</div></div>
+          <div class="stat"><div class="k"><i class="fas fa-crosshairs"></i>总击杀</div><div class="v" id="stKills">0</div></div>
+          <div class="stat gold"><div class="k"><i class="fas fa-star"></i>最高星级</div><div class="v" id="stStars"><i class="far fa-star dim"></i><i class="far fa-star dim"></i><i class="far fa-star dim"></i></div></div>
+          <div class="stat"><div class="k"><i class="fas fa-burst"></i>累计伤害</div><div class="v" id="stDmg">0</div></div>
+          <div class="stat gold"><div class="k"><i class="fas fa-coins"></i>军功点</div><div class="v" id="stPts">0</div></div>
+        </div>
+
+        <div class="krow">
+          <span class="kk accent">档案</span>
+          <span class="kv"><b id="slotBtns"></b></span>
+        </div>
+        <div class="krow">
+          <span class="kk yellow">晋升</span>
+          <span class="kv" id="rankInfo">晋升消耗 4 军功点 → 上等兵</span>
+          <button class="rankBtn" id="btnRankUp">晋升</button>
+        </div>
+        <!-- 军衔印章列: 每一级军衔是一枚盖在档案图纸上的钢印(纯 CSS, 无图片) -->
+        <div class="stampRow" id="rankStamps" aria-label="军衔晋升记录"></div>
+
+        <span class="overline">Career Totals 累计统计</span>
+        <div class="dim tight"></div>
+        <div class="krow"><span class="kk">命中率</span><span class="kv"><b class="hi" id="stAcc">—</b></span></div>
+        <div class="krow"><span class="kk">开枪/命中</span><span class="kv"><b id="stShots">0 / 0</b></span></div>
+        <div class="krow"><span class="kk">最远击杀</span><span class="kv"><b id="stLong">0 px</b></span></div>
+        <div class="krow"><span class="kk">最长连杀</span><span class="kv"><b id="stStreak">0</b></span></div>
+        <div class="krow"><span class="kk">投掷击杀</span><span class="kv"><b id="stGKills">0</b></span></div>
+        <div class="krow"><span class="kk">战斗时长</span><span class="kv"><b id="stTime">0 分</b></span></div>
+        <div class="krow"><span class="kk">当前/最高连胜</span><span class="kv"><b id="stWinStreak">0 / 0</b></span></div>
+        <div class="krow"><span class="kk">长街最佳</span><span class="kv"><b id="stStreet">尚无</b></span></div>
+        <div class="krow"><span class="kk">击败尸王</span><span class="kv"><b id="stBosses">0</b></span></div>
+        <p class="rankInfo"><i class="fas fa-circle-info note-i"></i>累计统计自 v2 存档开始记录，旧档从 0 起算。</p>
+      </div>
+    </section>
+
+    <!-- 成就墙 -->
+    <section class="sheet" id="secAch" data-mob="stats">
+      <div class="sheet-head">
+        <span class="tick warn"></span>
+        <span class="t"><i class="fas fa-trophy" style="color:var(--yellow);"></i>成就墙</span>
+        <span class="tb">
+          <div class="tb-i"><span class="tb-k">DWG. 图号</span><span class="tb-v">BR-13</span></div>
+          <div class="tb-i"><span class="tb-k">UNLOCK 已解锁</span><span class="tb-v" id="achCount">0/15</span></div>
+        </span>
+      </div>
+      <div class="sheet-body">
+        <div id="achFilter" class="achFilterRow"></div>
+        <div id="achList"></div>
+      </div>
+    </section>
+  </div>
+
+  <!-- ================= 右栏 ================= -->
+  <div class="col">
+
+    <!-- 装备选择 -->
+    <section class="sheet mob-on" id="secLoadout" data-mob="action">
+      <div class="sheet-head">
+        <span class="tick"></span>
+        <span class="t"><i class="fas fa-gun"></i>装备选择</span>
+        <span class="tb">
+          <div class="tb-i"><span class="tb-k">DWG. 图号</span><span class="tb-v">BR-14</span></div>
+          <div class="tb-i"><span class="tb-k">SLOT 主武器</span><span class="tb-v">01</span></div>
+        </span>
+      </div>
+      <div class="sheet-body">
+        <div class="weaponRow">
+          <button class="wbtn sel" id="btnWAr"><i class="fas fa-crosshairs wi"></i><span class="wn">突击步枪</span><small>均衡 · 30发</small></button>
+          <button class="wbtn" id="btnWSmg"><i class="fas fa-gun wi"></i><span class="wn">冲锋枪</span><small>速射 · 34发</small></button>
+          <button class="wbtn" id="btnWShotgun"><i class="fas fa-bomb wi"></i><span class="wn">霰弹枪</span><small>近战爆发 · 8发</small></button>
+          <button class="wbtn" id="btnWSniper"><i class="fas fa-location-crosshairs wi"></i><span class="wn">狙击枪</span><small>一发入魂 · 5发</small></button>
+          <button class="wbtn" id="btnWLmg"><i class="fas fa-bars-progress wi"></i><span class="wn">轻机枪</span><small>持续压制 · 75发</small></button>
+          <button class="wbtn" id="btnWDmr"><i class="fas fa-bullseye wi"></i><span class="wn">精确射手</span><small>中远点射 · 30伤</small></button>
+        </div>
+        <div class="weaponInfo" id="weaponInfo"></div>
+      </div>
+    </section>
+
+    <!-- 难度 -->
+    <section class="sheet mob-on" id="secDiff" data-mob="action">
+      <div class="sheet-head">
+        <span class="tick warn"></span>
+        <span class="t"><i class="fas fa-gauge-high" style="color:var(--red-2);"></i>难度</span>
+        <span class="tb">
+          <div class="tb-i"><span class="tb-k">DWG. 图号</span><span class="tb-v">BR-15</span></div>
+          <div class="tb-i"><span class="tb-k">THREAT 等级</span><span class="tb-v">NORM</span></div>
+        </span>
+      </div>
+      <div class="sheet-body">
+        <div class="diffRow">
+          <button class="diffBtn" id="diffEasy"><i class="fas fa-minus"></i><span class="dn">简单</span><small>蓝方4人 · 反应慢</small></button>
+          <button class="diffBtn sel" id="diffNorm"><i class="fas fa-equals"></i><span class="dn">标准</span><small>蓝方5人</small></button>
+          <button class="diffBtn" id="diffHard"><i class="fas fa-plus"></i><span class="dn">困难</span><small>蓝方6人 · 更准、更快</small></button>
+        </div>
+      </div>
+    </section>
+
+    <!-- 地图 -->
+    <section class="sheet mob-on" id="secMapPick" data-mob="action">
+      <div class="sheet-head">
+        <span class="tick"></span>
+        <span class="t"><i class="fas fa-map"></i>地图</span>
+        <span class="tb">
+          <div class="tb-i"><span class="tb-k">DWG. 图号</span><span class="tb-v">BR-16</span></div>
+          <div class="tb-i"><span class="tb-k">AREA 区域</span><span class="tb-v">05</span></div>
+        </span>
+      </div>
+      <div class="sheet-body">
+        <div class="diffRow">
+          <button class="diffBtn sel" id="btnMapHouse"><i class="fas fa-house"></i><span class="dn">户型图</span><small>一梯两户</small></button>
+          <button class="diffBtn" id="btnMapWarehouse"><i class="fas fa-warehouse"></i><span class="dn">仓库</span><small>月台货架</small></button>
+          <button class="diffBtn" id="btnMapFactory"><i class="fas fa-industry"></i><span class="dn">工厂</span><small>流水线车间</small></button>
+        </div>
+        <div class="diffRow" style="margin-top:8px;">
+          <button class="diffBtn" id="btnMapOffice"><i class="fas fa-building"></i><span class="dn">写字楼</span><small>核心筒中廊</small></button>
+          <button class="diffBtn" id="btnMapParking"><i class="fas fa-square-parking"></i><span class="dn">地下车库</span><small>车位与车道</small></button>
+        </div>
+        <p class="rankInfo"><i class="fas fa-circle-info note-i"></i>选中即写入配置，「开始行动」自动使用（左侧预览为户型图示意）。另有<b>训练场</b>（开局界面按钮 / <b>?range=1</b>）自由试枪，不计胜负与成就。</p>
+      </div>
+    </section>
+
+    <!-- 升级强化 -->
+    <section class="sheet" id="secUpgrade" data-mob="build">
+      <div class="sheet-head">
+        <span class="tick warn"></span>
+        <span class="t"><i class="fas fa-arrow-trend-up" style="color:var(--yellow);"></i>升级强化</span>
+        <span class="tb">
+          <div class="tb-i"><span class="tb-k">DWG. 图号</span><span class="tb-v">BR-17</span></div>
+          <div class="tb-i"><span class="tb-k">ITEMS 项数</span><span class="tb-v">18</span></div>
+        </span>
+      </div>
+      <div class="sheet-body">
+        <div id="upgradeList"></div>
+        <p class="rankInfo"><i class="fas fa-circle-info note-i"></i>胜利得 3+星级 军功点，失败得 1 点。升级永久生效（18 项：换弹/伤害/射速/护甲/医疗/队友机动/投掷强化/消音步伐/搜刮效率…）；升满后可继续用于<b style="color:var(--yellow);">军衔晋升</b>（见左栏战绩面板）。</p>
+      </div>
+    </section>
+
+    <!-- 每日挑战纪录 -->
+    <section class="sheet" id="secDaily" data-mob="stats">
+      <div class="sheet-head">
+        <span class="tick warn"></span>
+        <span class="t"><i class="fas fa-calendar-day" style="color:var(--red-2);"></i>每日挑战纪录</span>
+        <span class="tb">
+          <div class="tb-i"><span class="tb-k">DWG. 图号</span><span class="tb-v">BR-18</span></div>
+          <div class="tb-i"><span class="tb-k">DAYS 天数</span><span class="tb-v">7</span></div>
+        </span>
+      </div>
+      <div class="sheet-body">
+        <p class="rankInfo" style="margin:0 0 9px;"><i class="fas fa-circle-info note-i"></i>「每日挑战」在游戏开局界面进入，按当天日期固定规则，记录当天最高星级。</p>
+        <p id="dlToday"></p>
+        <div id="dailyList"></div>
+      </div>
+    </section>
+    <!-- 本地排行榜 -->
+    <section class="sheet" id="boardSheet" data-mob="more">
+      <div class="sheet-head">
+        <span class="tick warn"></span>
+        <span class="t"><i class="fas fa-trophy" style="color:var(--yellow);"></i>本地排行榜</span>
+        <span class="tb">
+          <div class="tb-i"><span class="tb-k">DWG. 图号</span><span class="tb-v">BR-20</span></div>
+          <div class="tb-i"><span class="tb-k">TOP 名额</span><span class="tb-v">10</span></div>
+        </span>
+      </div>
+      <div class="sheet-body">
+        <p class="bdNote"><i class="fas fa-circle-info note-i"></i>成绩只存在这台机器的浏览器里（全机共用，不随档案与账户加密）。名次按 <b>表现分 × 难度系数</b> 排（简单 ×0.85 / 标准 ×1.0 / 困难 ×1.2）：战役表现分按 <b>星级 → 用时 → 击杀</b> 折算，长街按 <b>波数 → 得分</b> 折算，只留前 10 名。</p>
+        <div id="boardPanel" class="bdWrap"></div>
+        <div class="bdActions"><button class="btn btn-sm btn-ghost" id="btnBoardClear"><i class="fas fa-eraser"></i>清空排行榜</button></div>
+      </div>
+    </section>
+  </div>
+
+  <!-- ================= 行动指令 ================= -->
+  <section class="sheet actions" id="secActions" data-mob="more">
+    <div class="sheet-head">
+      <span class="tick"></span>
+      <span class="t"><i class="fas fa-play"></i>行动指令</span>
+      <span class="tb">
+        <div class="tb-i"><span class="tb-k">DWG. 图号</span><span class="tb-v">BR-19</span></div>
+        <div class="tb-i"><span class="tb-k">EXEC 执行</span><span class="tb-v">READY</span></div>
+        <div class="tb-i"><span class="tb-k">SHEET 张次</span><span class="tb-v">02/04</span></div>
+      </span>
+    </div>
+    <div class="sheet-body">
+      <div class="spread">
+        <button class="btn btn-primary btn-block" id="btnGo" style="flex:1 1 200px;">
+          <span class="ico"><i class="fas fa-play"></i></span>
+          <span class="bx">开始行动<small>按当前配置进入战役</small></span>
+        </button>
+        <button class="btn btn-accent btn-block" id="btnGame" style="flex:1 1 200px;">
+          <span class="ico"><i class="fas fa-forward-fast"></i></span>
+          <span class="bx">直接进入游戏<small>跳过本页，立即开打</small></span>
+        </button>
+        <button class="btn btn-danger btn-block" id="btnStreet" style="flex:1 1 200px;">
+          <span class="ico"><i class="fas fa-skull"></i></span>
+          <span class="bx">丧尸围城 · 长街<small>独立玩法 · 波次防守</small></span>
+        </button>
+      </div>
+      <div class="spread">
+        <button class="btn btn-ghost btn-sm" id="btnExport"><i class="fas fa-file-export"></i>导出存档</button>
+        <button class="btn btn-ghost btn-sm" id="btnImport"><i class="fas fa-file-import"></i>导入存档</button>
+        <label class="encToggle" id="encToggleWrap" title="勾选后导出会先要一个口令；对方导入时必须输入同一个口令才能解开（纯本地加密，不上传任何东西）"><input type="checkbox" id="chkEncExport"> 加密导出（口令）</label>
+        <button class="btn btn-ghost btn-sm" id="btnAcct"><i class="fas fa-user-shield"></i>账户</button>
+        <button class="btn btn-danger btn-sm" id="btnReset"><i class="fas fa-trash-can"></i>重置全部进度</button>
+      </div>
+      <p class="note"><i class="fas fa-circle-info" style="color:var(--fg-subtle);"></i>「导出存档」把全部进度存成 json；勾「加密导出（口令）」则需同一口令才能导入。朋友在本页「导入存档」即可接续，或点「重置全部进度」重开。</p>
+      <input type="file" id="importFile" accept=".json,application/json" style="display:none;">
+    </div>
+  </section>
+</div>
+</main>
+
+<!-- 移动端底部主行动 + 分页导航（桌面隐藏） -->
+<button class="mob-hub-go" id="mobHubGo" type="button">
+  <span><b>开始行动</b><small>当前配置 · 立即进入</small></span>
+  <i class="fas fa-play"></i>
+</button>
+<nav class="mob-nav mob-nav-hub" aria-label="整备大厅导航">
+  <button class="mob-nav-i is-on" type="button" data-mob-tab="action"><i class="fas fa-crosshairs"></i><span>行动</span></button>
+  <button class="mob-nav-i" type="button" data-mob-tab="build"><i class="fas fa-arrow-trend-up"></i><span>强化</span></button>
+  <button class="mob-nav-i" type="button" data-mob-tab="stats"><i class="fas fa-chart-line"></i><span>战绩</span></button>
+  <button class="mob-nav-i" type="button" data-mob-tab="more"><i class="fas fa-bars-progress"></i><span>更多</span></button>
+</nav>
+
+<script>
+'use strict';
+/* ============================================================================
+   交火 · 整备大厅(单文件, 纯本地运行, 零网络依赖)
+   ----------------------------------------------------------------------------
+   【职责】进入战斗前的整备大厅:
+     1. 装备选择 —— 突击步枪 / 冲锋枪 / 霰弹枪 / 狙击枪(写入配置, 游戏页生效);
+     2. 难度选择 —— 简单4人 / 标准5人 / 困难6人(+客厅守卫);
+     3. 升级强化 —— 18 项永久升级(生命/机动/精度/视野/弹药/手雷/闪光/队友 +
+        换弹/伤害/射速/护甲/医疗/队友机动), 军功点来自战斗结算, 等级与点数即时持久化;
+     4. 军衔晋升 —— 军功点消耗, 无限等级(列兵→…→五星上将→统帅·N);
+     5. 战绩统计 —— 从存档读取 胜/负/击杀/最高星级/伤害/军功点/军衔;
+     6. 地图预览 —— 静态重绘户型图(房间/门/掩体/出生点, 数据由 tests/preview_test.js 从游戏内几何导出);
+        另有 仓库/工厂/写字楼/地下车库 四图, 本页直接选择并写入 cfg.map 自动带入(预览仅示意户型图)。
+   【视觉】PRTS / 罗德岛终端风: 黑白灰为体、青为用; 直角 + 色条 + 斜纹 + 半调网点 +
+        角标三角 + 大写拉丁装饰字; 图标全部来自本地 FontAwesome(零网络)。
+   【localStorage 协议】(与游戏页互通)
+     breach_game_cfg  = { diff, weapon, map, upgrades }   本页写入, 游戏页读取
+     breach_game_save = { points, stats }            本页读取, 游戏页写入
+   【跳转】「开始行动」→ game/breach.html; 「长街尸潮」→ game/street.html (本页位于 game/ 子目录)
+   ============================================================================ */
+
+// 存档槽位(A4, 与游戏页/主页同一套协议): 活动槽位 1..3, 槽位 1 沿用历史 key,
+// 槽位 N(>=2) 用 "_sN" 后缀。默认槽位 1 → 旧档与既有测试行为完全不变。
+const SLOT_KEY = 'breach_game_slot';
+const SLOT_N = 3;
+function activeSlot() {
+  let n = 1;
+  try {
+    if (typeof localStorage !== 'undefined') {
+      const raw = localStorage.getItem(SLOT_KEY);
+      // 只接受纯数字整数字符串: '2.7'/'2abc' 之类的脏值一律回退 1(parseInt 会截成 2, 属静默误判)
+      if (raw !== null && /^\d+$/.test(String(raw).trim())) n = parseInt(raw, 10);
+    }
+  } catch (e) { }
+  if (!(n >= 1 && n <= SLOT_N)) n = 1;
+  return n;
+}
+function setActiveSlot(n) {
+  n = parseInt(n, 10);
+  if (!(n >= 1 && n <= SLOT_N)) n = 1;
+  try { if (typeof localStorage !== 'undefined') localStorage.setItem(SLOT_KEY, String(n)); } catch (e) { }
+  return n;
+}
+function saveKeyFor(n) { return n <= 1 ? 'breach_game_save' : 'breach_game_save_s' + n; }
+function cfgKeyFor(n) { return n <= 1 ? 'breach_game_cfg' : 'breach_game_cfg_s' + n; }
+function CFG_KEY() { return cfgKeyFor(activeSlot()); }
+function SAVE_KEY() { return saveKeyFor(activeSlot()); }
+const GAME_FILE = 'breach.html';    // 同目录(game/) 红蓝对抗战役
+const STREET_FILE = 'street.html';  // 独立玩法: 长街尸潮(共用本页装备/升级/难度, 同目录)
+const HOME_FILE = '../index.html';  // 主页
+// 存档版本协议(与游戏页一致): 写入带 version, 读取按版本兼容旧档
+const CFG_VERSION = 1;
+const SAVE_VERSION = 2;   // v2 起: 累计统计/地图胜场/街玩尸王
+function lsGet(k) { try { return vaultRead(k); } catch (e) { return null; } }
+// P0-3: lsSet 不再吞掉写入异常 —— 返回布尔, 由调用方决定提示/回滚。
+// (原实现 catch{} 静默失败, 导致 persistCfg/persistSave 永不抛错 → 上层的"保存失败已回滚"是死代码)
+let storageWarned = false;
+function lsSet(k, v) {
+  // v3.2: 账户封装 —— 账户模式下加密写进账户命名空间; 锁定时对进度键直接返回 false(不静默写坏数据)
+  let ok = false;
+  try { ok = vaultWrite(k, v); } catch (e) { noteStorageFail(e && e.message ? e.message : String(e)); return false; }
+  if (!ok) { noteStorageFail(vaultGuarded(k) && acctLocked() ? '账户未解锁，进度未写入' : '本地存储写入失败'); return false; }
+  return true;
+}
+// 本地存储不可用/已满时只提示一次, 避免每帧刷屏
+function noteStorageFail(why) {
+  if (storageWarned) return;
+  storageWarned = true;
+  try { if (typeof toast === 'function') toast('本地存储写入失败（' + why + '）：本局进度可能无法保存'); } catch (e) { }
+}
+// 读回真实落盘内容覆盖内存(失败时保持"内存 === 已落盘", 不留下半成品)。
+// 必须过一遍 sanitizeAll: 空/缺字段的 cfg(如"存储写入全失败"后读回 {})会导致
+// renderWeapons 取 WEAPON_DEFS[undefined] 之类的崩溃 —— 回滚路径同样要保证内存态合法。
+function loadAllNoThrow() {
+  try { const s = lsGet(CFG_KEY()); cfg = s ? JSON.parse(s) : {}; } catch (e) { cfg = {}; }
+  try { const s = lsGet(SAVE_KEY()); save = s ? JSON.parse(s) : {}; } catch (e) { save = {}; }
+  sanitizeAll();
+}
+
+const WEAPON_DEFS = {
+  ar: { name: '突击步枪', mag: 30, dmg: 11, rpm: 9.5, spread: '低', desc: '均衡可靠，中近距离通吃；备弹 150。' },
+  smg: { name: '冲锋枪', mag: 34, dmg: 8, rpm: 12.5, spread: '中', desc: '射速极快，近战压制；备弹 200，换弹快。' },
+  shotgun: { name: '霰弹枪', mag: 8, dmg: 11, pellets: 8, rpm: 2, spread: '大', desc: '8 颗弹丸扇形散射：贴脸全中 88 伤，越远命中越少；备弹 56。' },
+  sniper: { name: '狙击枪', mag: 5, dmg: 60, rpm: 0.95, spread: '极低', desc: '高伤低射速，弹速最快，一发入魂；右键放大 2.2 倍；备弹 24。' },
+  lmg: { name: '轻机枪', mag: 75, dmg: 10, rpm: 11, spread: '较大', desc: '75 发大弹匣持续压制，精度差、换弹慢；备弹 300。' },
+  dmr: { name: '精确射手步枪', mag: 12, dmg: 30, rpm: 3.2, spread: '很低', desc: '中远点射，单发 30 伤；右键放大 1.8 倍；备弹 72。' },
+};
+const UPGRADE_DEFS = [
+  { id: 'hp', name: '生命强化', fa: 'fa-heart-pulse', desc: '玩家生命上限 +25/级', max: 3, cost: [1, 2, 3] },
+  { id: 'speed', name: '机动强化', fa: 'fa-person-running', desc: '移动速度 +8%/级', max: 3, cost: [1, 2, 3] },
+  { id: 'aim', name: '射击精度', fa: 'fa-crosshairs', desc: '散布 -15%/级', max: 3, cost: [1, 2, 3] },
+  { id: 'vision', name: '视野扩展', fa: 'fa-eye', desc: '视野距离 +8%/级', max: 3, cost: [1, 2, 3] },
+  { id: 'ammo', name: '弹药扩容', fa: 'fa-box-open', desc: '备弹 +30/级', max: 2, cost: [1, 2] },
+  { id: 'frag', name: '手雷携行', fa: 'fa-bomb', desc: '起始手雷 +1/级', max: 2, cost: [1, 2] },
+  { id: 'flash', name: '闪光携行', fa: 'fa-bolt', desc: '起始闪光弹 +1/级', max: 2, cost: [1, 2] },
+  { id: 'robHp', name: '队友装甲', fa: 'fa-shield-halved', desc: '机器人生命 +15/级', max: 3, cost: [1, 2, 3] },
+  { id: 'robDmg', name: '队友火力', fa: 'fa-gun', desc: '机器人伤害 +15%/级', max: 3, cost: [1, 2, 3] },
+  { id: 'reload', name: '换弹加速', fa: 'fa-rotate-right', desc: '换弹时间 -12%/级', max: 3, cost: [1, 2, 3] },
+  { id: 'dmg', name: '伤害强化', fa: 'fa-fire', desc: '玩家伤害 +6%/级', max: 3, cost: [1, 2, 3] },
+  { id: 'rate', name: '射速强化', fa: 'fa-forward', desc: '射速 +6%/级', max: 2, cost: [1, 2] },
+  { id: 'armor', name: '玩家护甲', fa: 'fa-shield', desc: '受击伤害 -10%/级', max: 3, cost: [1, 2, 3] },
+  { id: 'med', name: '医疗强化', fa: 'fa-kit-medical', desc: '医疗包回复 +20%/级', max: 2, cost: [1, 2] },
+  { id: 'robSpd', name: '队友机动', fa: 'fa-person-walking', desc: '机器人速度 +6%/级', max: 3, cost: [1, 2, 3] },
+  // v2 新增三项(15 → 18): 顺序必须与 game/breach.html 一致(meta_test 逐项校验 id/max/cost)
+  { id: 'throwRng', name: '投掷强化', fa: 'fa-paper-plane', desc: '手雷/闪光弹/烟雾弹/炸药包投掷距离 +25%/级', max: 2, cost: [1, 2] },
+  { id: 'quiet', name: '消音步伐', fa: 'fa-volume-low', desc: '枪声暴露半径 -30%/级', max: 2, cost: [1, 2] },
+  { id: 'scavenge', name: '搜刮效率', fa: 'fa-hand-holding', desc: '拾取补给量 +25%/级（满级投掷物双份）', max: 2, cost: [1, 2] },
+];
+
+// ---------- 状态 ----------
+let cfg = null, save = null;
+const MAP_KEYS = ['house', 'warehouse', 'factory', 'office', 'parking'];
+const DIFF_KEYS = ['easy', 'norm', 'hard'];
+function num(v, d) {
+  // 非负整数(修复: 导入脏档的 NaN/负数/字符串点数与军衔)
+  // P0-4: 拒绝离谱量级 —— '9e99' 这类字符串 Number() 之后是"有限数", 会原样落盘并显示成 9e+99。
+  // 本作任何计数器都不可能超过 1e12, 超过即按脏数据回退默认。
+  v = Number(v);
+  if (!Number.isFinite(v) || v < 0 || v >= 1e12) return d;
+  return Math.floor(v);
+}
+function sanitizeAll() {
+  // 配置/存档统一校验与钳制(修复: 本页是"导入存档"的唯一入口, 原无任何 sanitize →
+  //   repeat 越界崩溃 / 负军衔负花费白赚军功点 / NaN 点数落盘 null)
+  sanitizeCfg();
+  sanitizeSave();
+}
+// —— 以下两个"纯校验"函数就地规范当前内存对象, 导入的副本先赋值再调用即可(P0-4) ——
+function sanitizeCfg() {
+  if (typeof cfg !== 'object' || !cfg) cfg = {};
+  cfg.upgrades = (typeof cfg.upgrades === 'object' && cfg.upgrades) ? cfg.upgrades : {};
+  cfg.map = MAP_KEYS.indexOf(cfg.map) >= 0 ? cfg.map : 'house';
+  cfg.diff = DIFF_KEYS.indexOf(cfg.diff) >= 0 ? cfg.diff : 'norm';
+  if (!WEAPON_DEFS[cfg.weapon]) cfg.weapon = 'ar';
+  for (const d of UPGRADE_DEFS) {
+    const raw = parseInt(cfg.upgrades[d.id], 10);
+    const lv = Number.isFinite(raw) ? Math.max(0, Math.min(d.max, raw)) : 0;
+    if (lv) cfg.upgrades[d.id] = lv; else delete cfg.upgrades[d.id];
+  }
+  // P0-4: 剔除未知升级 id —— 上面的循环只覆盖 UPGRADE_DEFS 里有的 id,
+  // 导入的 {"__bad__":5} 之类会原样留在 upgrades 里并随存档扩散
+  for (const id in cfg.upgrades) {
+    if (!UPGRADE_DEFS.some(d => d.id === id)) delete cfg.upgrades[id];
+  }
+  cfg.version = Math.max(num(cfg.version, 1), 1);
+  return cfg;
+}
+function sanitizeSave() {
+  if (typeof save !== 'object' || !save) save = {};
+  save.points = num(save.points, 0);
+  save.rank = num(save.rank, 0);
+  save.version = Math.max(num(save.version, 1), 1);
+  save.stats = (typeof save.stats === 'object' && save.stats) ? save.stats : {};
+  for (const k of ['wins', 'losses', 'kills', 'damage']) save.stats[k] = num(save.stats[k], 0);
+  save.stats.bestStars = Math.max(0, Math.min(3, num(save.stats.bestStars, 0)));
+  // v2 累计统计(A5): 统一钳制成非负整数, 防止导入脏档把 NaN 带进界面
+  for (const k of ['shots', 'hits', 'longKill', 'bestStreak', 'gKills', 'time', 'ff', 'winStreak', 'bestWinStreak']) {
+    save.stats[k] = num(save.stats[k], 0);
+  }
+  save.stats.mapWins = (typeof save.stats.mapWins === 'object' && save.stats.mapWins) ? save.stats.mapWins : {};
+  for (const k in save.stats.mapWins) save.stats.mapWins[k] = num(save.stats.mapWins[k], 0);
+  save.stats.ach = (typeof save.stats.ach === 'object' && save.stats.ach) ? save.stats.ach : {};
+  save.streetBest = num(save.streetBest, 0);
+  save.streetWaves = num(save.streetWaves, 0);
+  save.streetBosses = num(save.streetBosses, 0);
+  // P0-4: 每日纪录逐条钳制(原先只判"是不是对象", 导入脏档可把 'x' 之类写进界面)
+  save.daily = (typeof save.daily === 'object' && save.daily) ? save.daily : {};
+  for (const day in save.daily) {
+    const rec = save.daily[day];
+    if (typeof rec !== 'object' || !rec) { delete save.daily[day]; continue; }
+    const rec2 = { stars: Math.max(0, Math.min(3, num(rec.stars, 0))), time: num(rec.time, 0) };
+    save.daily[day] = rec2;
+  }
+  return save;
+}
+// 上次读/写时的存档原文: 用来判断"磁盘是不是被别的页面改过"(bfcache 返回 / 另一个标签页打完一局)
+let lastSaveRaw = null;
+function loadAll() {
+  try { cfg = JSON.parse(lsGet(CFG_KEY()) || 'null'); } catch (e) { cfg = null; }
+  try { save = JSON.parse(lsGet(SAVE_KEY()) || 'null'); } catch (e) { save = null; }
+  sanitizeAll();
+  lastSaveRaw = lsGet(SAVE_KEY());
+}
+// P0-3: 落盘成败必须可判定。旧实现 try{...}catch{} 永不抛错 → 上层的"保存失败已回滚"是死代码,
+// 配额满/隐私模式/存储被禁用时玩家会静默"白拿升级"且看不到任何提示。
+function persistCfgOk() { try { sanitizeCfg(); cfg.version = Math.max(num(cfg.version, 1), CFG_VERSION); return lsSet(CFG_KEY(), JSON.stringify(cfg)); } catch (e) { return false; } }
+function persistSaveOk() {
+  try {
+    sanitizeSave(); save.version = Math.max(num(save.version, 1), SAVE_VERSION);
+    const raw = JSON.stringify(save);
+    const ok = lsSet(SAVE_KEY(), raw);
+    if (ok) lastSaveRaw = raw;   // 记下"我写进去的原文", 回到本页时用它判断要不要重新读盘
+    return ok;
+  } catch (e) { return false; }
+}
+function persistCfg() { persistCfgOk(); }
+function persistSave() { persistSaveOk(); }
+// 事务式落盘: 两档要么都成功, 要么读回真实落盘内容覆盖内存(内存 === 磁盘, 不留半成品)
+function persistBoth() {
+  // 两档必须"同成同败": 旧实现是 `persistSaveOk() && persistCfgOk()`, 短路只保证两档都试一次。
+  // save 写成功、cfg 写失败时会读回真实落盘内容 —— 可 save 里的军功点已经扣过了,
+  // 玩家白扣一笔, 界面还提示"未扣军功点"。这里改成显式回滚到写之前的两档原文。
+  const oldSave = lsGet(SAVE_KEY()), oldCfg = lsGet(CFG_KEY());
+  const ok = persistSaveOk() && persistCfgOk();
+  if (!ok) {
+    try { if (oldSave === null) vaultRemove(SAVE_KEY()); else lsSet(SAVE_KEY(), oldSave); } catch (e) { }
+    try { if (oldCfg === null) vaultRemove(CFG_KEY()); else lsSet(CFG_KEY(), oldCfg); } catch (e) { }
+    loadAllNoThrow();
+  }
+  return ok;
+}
+
+// ---------- 地图预览(户型图; 数据与游戏内地图同源, 见 tests/preview_test.js) ----------
+// <map-preview-data:auto> —— 由 node tests/preview_test.js --write 从 game/breach.html 构建器自动生成, 请勿手改:
+//   房间 / 墙体 / 掩体 / 出生点全部取自游戏内同一份地图数据, 改完地图重跑该命令即可同步预览。
+const PREVIEW_MAPS = {
+  house: {
+    name: "户型图",
+    note: "一梯两户板式住宅 · 中央核心筒(楼梯间/电梯井/电梯厅) · 南向客厅与阳台",
+    rooms: [
+      [20,20,360,340,'#382e22','主卧'], [2020,20,360,340,'#382e22','主卧'], [380,20,320,340,'#342c28','次卧'], [1700,20,320,340,'#342c28','次卧'],
+      [700,20,340,340,'#322e26','书房'], [1360,20,340,340,'#322e26','书房'], [20,360,1020,80,'#3a3630','走廊'], [1360,360,1020,80,'#3a3630','走廊'],
+      [20,440,180,220,'#3e4248','卫生间'], [2200,440,180,220,'#3e4248','卫生间'], [200,440,320,220,'#3e4042','厨房'], [1880,440,320,220,'#3e4042','厨房'],
+      [520,440,360,220,'#3a3228','餐厅'], [1520,440,360,220,'#3a3228','餐厅'], [880,440,160,220,'#3c3830','玄关'], [1360,440,160,220,'#3c3830','玄关'],
+      [20,660,780,320,'#403a30','客厅'], [1600,660,780,320,'#403a30','客厅'], [800,660,240,320,'#383c40','阳台'], [1360,660,240,320,'#383c40','阳台'],
+      [1040,260,160,260,'#343438','楼梯间'], [1200,260,160,260,'#3c3e42','电梯厅'], [1040,520,320,460,'#3c3e42','电梯厅']
+    ],
+    walls: [
+      [20,20,2380,20,0], [2380,20,2380,980,0], [2380,980,20,980,0], [20,980,20,20,0], [1040,20,1040,260,0], [1360,20,1360,260,0],
+      [1040,260,1360,260,0], [1040,260,1040,520,0], [1200,260,1200,340,0], [1200,340,1200,420,1], [1200,420,1200,520,0], [1040,520,1200,520,0],
+      [1040,520,1040,540,0], [1040,540,1040,620,1], [1040,620,1040,980,0], [1360,260,1360,520,0], [1360,520,1360,540,0], [1360,540,1360,620,1],
+      [1360,620,1360,980,0], [20,360,180,360,0], [2220,360,2380,360,0], [180,360,260,360,1], [2140,360,2220,360,1], [260,360,380,360,0],
+      [2020,360,2140,360,0], [380,360,480,360,0], [1920,360,2020,360,0], [480,360,560,360,1], [1840,360,1920,360,1], [560,360,700,360,0],
+      [1700,360,1840,360,0], [700,360,820,360,0], [1580,360,1700,360,0], [820,360,900,360,1], [1500,360,1580,360,1], [900,360,1040,360,0],
+      [1360,360,1500,360,0], [380,20,380,360,0], [2020,20,2020,360,0], [700,20,700,360,0], [1700,20,1700,360,0], [20,440,70,440,0],
+      [2330,440,2380,440,0], [70,440,150,440,1], [2250,440,2330,440,1], [150,440,700,440,0], [1700,440,2250,440,0], [200,440,200,660,0],
+      [2200,440,2200,660,0], [520,440,520,480,0], [1880,440,1880,480,0], [520,480,520,560,1], [1880,480,1880,560,1], [520,560,520,660,0],
+      [1880,560,1880,660,0], [20,660,520,660,0], [1880,660,2380,660,0], [800,660,1040,660,0], [1360,660,1600,660,0], [800,660,800,740,0],
+      [1600,660,1600,740,0], [800,740,800,900,1], [1600,740,1600,900,1], [800,900,800,980,0], [1600,900,1600,980,0]
+    ],
+    blocks: [
+      [60,50,200,210], [2140,50,200,210], [20,50,35,45], [2345,50,35,45], [265,50,35,45], [2100,50,35,45], [310,50,65,180], [2025,50,65,180],
+      [40,278,120,50], [2240,278,120,50], [400,40,130,200], [1870,40,130,200], [590,40,95,60], [1715,40,95,60], [608,120,34,34], [1758,120,34,34],
+      [630,200,60,140], [1710,200,60,140], [715,40,70,180], [1615,40,70,180], [870,40,150,70], [1380,40,150,70], [905,130,34,34], [1461,130,34,34],
+      [920,250,100,80], [1380,250,100,80], [28,452,55,90], [2317,452,55,90], [150,452,50,60], [2200,452,50,60], [25,560,150,70], [2225,560,150,70],
+      [210,450,260,60], [1930,450,260,60], [240,452,80,56], [2080,452,80,56], [360,452,70,56], [1970,452,70,56], [210,575,70,80], [2120,575,70,80],
+      [640,490,150,90], [1610,490,150,90], [655,452,30,30], [1715,452,30,30], [745,452,30,30], [1625,452,30,30], [655,588,30,30], [1715,588,30,30],
+      [745,588,30,30], [1625,588,30,30], [530,445,70,45], [1800,445,70,45], [995,445,40,90], [1365,445,40,90], [60,665,250,80], [2090,665,250,80],
+      [20,770,85,150], [2295,770,85,150], [125,800,110,80], [2165,800,110,80], [60,930,200,45], [2140,930,200,45], [700,670,90,55], [1610,670,90,55],
+      [820,670,70,70], [1510,670,70,70], [940,670,80,60], [1380,670,80,60]
+    ],
+    spawns: [
+      [300,820,'#ff8a7a','红方·左户客厅'], [2120,310,'#7aa8ff','蓝方·机1'], [1820,300,'#5a8dff','蓝方·机2'], [1520,180,'#5a8dff','蓝方·机3'],
+      [1840,620,'#5a8dff','蓝方·机4'], [1900,800,'#5a8dff','蓝方·机5']
+    ]
+  },
+  warehouse: {
+    name: "仓库",
+    note: "北墙装卸月台 · 两排背靠背双深货架 + 3m 叉车巷道 · 办公/卫生间/机电房",
+    rooms: [
+      [20,20,340,300,'#403c34','办公区'], [20,360,160,140,'#3e4248','卫生间'], [20,760,280,220,'#383a3c','机电房'], [400,20,740,130,'#423e36','装卸月台'],
+      [400,150,740,230,'#3c3a38','收发货区'], [1180,20,1200,360,'#3e3e3a','分拣包装区'], [400,380,1980,130,'#3a3c3e','货架区A'],
+      [20,510,2380,250,'#3a3c40','主通道'], [400,850,1980,130,'#383a38','货架区B'], [20,380,380,380,'#3a3a3c','西侧通道'], [20,20,2360,960,'#3a3a3c','库区']
+    ],
+    walls: [
+      [20,20,2380,20,0], [2380,20,2380,980,0], [2380,980,20,980,0], [20,980,20,20,0], [360,20,360,150,0], [360,150,360,230,1], [360,230,360,320,0],
+      [20,320,360,320,0], [180,360,180,400,0], [180,400,180,460,1], [180,460,180,500,0], [20,360,180,360,0], [20,500,180,500,0], [300,760,300,850,0],
+      [300,850,300,920,1], [300,920,300,980,0], [20,760,300,760,0]
+    ],
+    blocks: [
+      [420,380,280,130], [420,850,280,130], [780,380,280,130], [780,850,280,130], [1140,380,280,130], [1140,850,280,130], [1500,380,280,130],
+      [1500,850,280,130], [1860,380,280,130], [1860,850,280,130], [2220,380,160,130], [2220,850,160,130], [420,20,220,130], [700,20,220,130],
+      [980,20,160,130], [600,230,90,130], [1300,560,90,130], [520,520,120,80], [1400,520,120,80], [2100,520,110,80], [900,720,110,80],
+      [1700,720,120,80], [1220,60,180,80], [1220,200,180,80], [1500,60,110,90], [1500,200,110,90], [1700,120,600,60], [1900,250,120,70],
+      [40,40,140,70], [85,120,34,34], [40,180,70,140], [180,200,150,80], [300,40,44,44], [30,372,50,60], [30,450,50,44], [35,780,70,120],
+      [35,920,70,50], [150,780,130,80]
+    ],
+    spawns: [
+      [560,300,'#ff8a7a','红方·收发货区'], [2100,300,'#7aa8ff','蓝方·机1'], [1440,250,'#5a8dff','蓝方·机2'], [760,620,'#5a8dff','蓝方·机3'],
+      [2180,650,'#5a8dff','蓝方·机4'], [200,930,'#5a8dff','蓝方·机5']
+    ]
+  },
+  factory: {
+    name: "工厂",
+    note: "西进东出工艺动线: 原料库→冲压→焊接→装配 / 质检→成品→发货",
+    rooms: [
+      [20,20,400,360,'#3e3a32','原料库'], [440,20,640,360,'#3a3c3e','冲压车间'], [1080,20,600,360,'#3c3c38','焊接车间'], [1680,20,700,360,'#3a3e3a','装配车间'],
+      [20,380,2360,220,'#3a3c40','主通道'], [20,620,300,360,'#38383c','变电所'], [320,600,700,380,'#3e3e3c','质检区'], [1020,600,720,380,'#3a3836','成品库'],
+      [1740,600,640,380,'#3e3c3a','发货区']
+    ],
+    walls: [
+      [20,20,2380,20,0], [2380,20,2380,980,0], [2380,980,20,980,0], [20,980,20,20,0], [420,20,420,150,0], [420,150,420,280,1], [420,280,420,380,0],
+      [20,380,420,380,0], [1080,20,1080,190,0], [1680,20,1680,190,0], [320,620,320,770,0], [320,770,320,850,1], [320,850,320,980,0],
+      [20,620,320,620,0], [1020,600,1020,820,0], [1740,600,1740,820,0]
+    ],
+    blocks: [
+      [480,300,560,60], [1160,300,460,60], [1780,300,480,60], [480,20,180,150], [700,20,180,150], [920,20,180,150], [1120,20,130,120],
+      [1300,20,130,120], [1120,220,110,70], [1290,220,110,70], [1540,40,100,150], [1780,20,120,80], [1920,20,120,80], [2060,20,120,80],
+      [2200,20,160,80], [2260,180,110,90], [400,650,170,80], [660,640,150,110], [400,850,160,130], [660,860,140,120], [1080,640,140,110],
+      [1280,640,140,110], [1480,640,140,110], [1080,840,140,140], [1280,840,140,140], [1500,840,200,140], [2260,620,120,340], [1800,650,150,120],
+      [2020,650,90,130], [1840,860,180,100], [2020,860,110,100], [20,20,150,110], [220,60,120,90], [20,230,150,100], [300,250,110,80],
+      [40,640,70,150], [150,640,150,130], [150,860,150,120]
+    ],
+    spawns: [
+      [250,240,'#ff8a7a','红方·原料库'], [620,250,'#7aa8ff','蓝方·机1'], [1520,250,'#5a8dff','蓝方·机2'], [2000,220,'#5a8dff','蓝方·机3'],
+      [720,800,'#5a8dff','蓝方·机4'], [1400,790,'#5a8dff','蓝方·机5']
+    ]
+  },
+  office: {
+    name: "写字楼",
+    note: "西端核心筒(电梯/楼梯/卫生间) · 1.6m 中央走廊 · 南北两排办公单元",
+    rooms: [
+      [20,300,320,360,'#3e3e42','电梯厅'], [180,20,160,280,'#36363a','楼梯间'], [20,660,320,320,'#3e4248','卫生间'], [340,20,560,440,'#383c42','会议室'],
+      [900,20,600,440,'#3c3a34','开放办公A'], [1500,20,460,440,'#3a3e38','开放办公B'], [1960,20,420,440,'#36383e','经理室'],
+      [340,460,2040,160,'#404044','中央走廊'], [340,620,420,360,'#403e38','前台大厅'], [760,620,460,360,'#383a3e','机房'], [1220,620,480,360,'#3c3c36','茶水间'],
+      [1700,620,680,360,'#3a383a','档案室']
+    ],
+    walls: [
+      [20,20,2380,20,0], [2380,20,2380,980,0], [2380,980,20,980,0], [20,980,20,20,0], [180,20,180,300,0], [20,300,180,300,0], [340,20,340,300,0],
+      [180,300,230,300,0], [230,300,310,300,1], [310,300,340,300,0], [340,300,340,460,0], [340,620,340,980,0], [20,660,70,660,0], [70,660,150,660,1],
+      [150,660,210,660,0], [210,660,290,660,1], [290,660,340,660,0], [180,660,180,980,0], [900,20,900,460,0], [1500,20,1500,460,0],
+      [1960,20,1960,460,0], [760,620,760,980,0], [1220,620,1220,980,0], [1700,620,1700,980,0], [340,460,580,460,0], [580,460,660,460,1],
+      [660,460,1160,460,0], [1160,460,1240,460,1], [1240,460,1690,460,0], [1690,460,1770,460,1], [1770,460,2130,460,0], [2130,460,2210,460,1],
+      [2210,460,2380,460,0], [340,620,510,620,0], [510,620,590,620,1], [590,620,950,620,0], [950,620,1030,620,1], [1030,620,1420,620,0],
+      [1420,620,1500,620,1], [1500,620,2000,620,0], [2000,620,2080,620,1], [2080,620,2380,620,0]
+    ],
+    blocks: [
+      [520,170,300,110], [545,132,30,30], [675,132,30,30], [805,132,30,30], [485,195,30,30], [485,245,30,30], [825,195,30,30], [825,245,30,30],
+      [520,40,240,26], [820,40,60,140], [920,70,170,70], [1260,70,170,70], [920,190,170,70], [1260,190,170,70], [920,310,170,70], [1260,310,170,70],
+      [1420,60,70,60], [1408,390,48,48], [1520,70,170,70], [1790,70,150,70], [1520,190,170,70], [1790,190,150,70], [1520,310,170,70],
+      [1790,310,150,70], [1880,390,50,50], [2000,80,220,90], [2080,190,40,40], [2280,240,60,170], [2000,260,70,70], [2000,390,70,60],
+      [360,640,150,70], [600,640,100,70], [400,800,100,60], [760,640,70,170], [760,850,70,120], [850,640,70,170], [850,850,70,120],
+      [1140,640,80,140], [1240,640,160,70], [1540,640,60,55], [1620,640,70,70], [1280,840,150,80], [1470,850,30,30], [1740,640,220,60],
+      [2100,640,220,60], [1740,720,220,60], [2100,720,220,60], [1740,800,220,60], [2100,800,220,60], [30,680,45,40], [30,780,60,90], [100,780,60,90],
+      [30,900,110,55], [200,780,60,90], [270,780,60,90], [210,900,100,55]
+    ],
+    spawns: [
+      [600,880,'#ff8a7a','红方·前台大厅'], [620,340,'#7aa8ff','蓝方·机1'], [1200,380,'#5a8dff','蓝方·机2'], [1750,380,'#5a8dff','蓝方·机3'],
+      [2170,300,'#5a8dff','蓝方·机4'], [990,800,'#5a8dff','蓝方·机5']
+    ]
+  },
+  parking: {
+    name: "地下车库",
+    note: "三排垂直式车位 + 两条单行车道 · 8.1m 柱网 · 坡道出入口与设备房",
+    rooms: [
+      [20,20,280,210,'#3c3e42','设备房'], [20,230,1000,750,'#383a40','停车区A'], [1020,20,450,960,'#36383e','停车区B'], [1470,20,450,960,'#36383e','停车区C'],
+      [2190,20,190,140,'#343438','楼梯间'], [2000,160,380,140,'#3c3e42','电梯厅'], [1920,700,460,160,'#3a3a3c','坡道'], [2180,860,200,120,'#3c3e42','值班室'],
+      [1920,300,460,400,'#36383c','车道'], [20,20,2360,960,'#383a3e','车库']
+    ],
+    walls: [
+      [20,20,2380,20,0], [2380,20,2380,980,0], [2380,980,20,980,0], [20,980,20,20,0], [300,20,300,110,0], [300,110,300,190,1], [300,190,300,230,0],
+      [20,230,300,230,0], [2000,20,2000,300,0], [2000,300,2160,300,0], [2160,300,2240,300,1], [2240,300,2380,300,0], [2190,20,2190,160,0],
+      [2000,160,2190,160,0], [2190,160,2240,160,0], [2240,160,2320,160,1], [2320,160,2380,160,0], [2180,860,2180,900,0], [2180,900,2180,960,1],
+      [2180,960,2180,980,0], [2180,860,2380,860,0]
+    ],
+    blocks: [
+      [1030,20,430,210], [1470,20,430,210], [30,270,430,210], [1030,270,430,210], [1470,270,430,210], [30,570,430,210], [1030,570,430,210],
+      [1470,570,430,210], [30,800,430,180], [1030,800,430,180], [1470,800,430,180], [600,90,75,75], [600,700,75,75], [2100,380,75,75],
+      [2100,600,75,75], [960,480,70,70], [40,40,120,90], [40,150,90,70], [170,40,70,70], [2080,690,220,25], [2290,880,80,90]
+    ],
+    spawns: [
+      [2150,800,'#ff8a7a','红方·坡道出入口'], [230,150,'#7aa8ff','蓝方·机1'], [760,140,'#5a8dff','蓝方·机2'], [760,880,'#5a8dff','蓝方·机3'],
+      [1250,520,'#5a8dff','蓝方·机4'], [2100,230,'#5a8dff','蓝方·机5']
+    ]
+  }
+};
+// </map-preview-data:auto>
+const HOUSE_PREV = PREVIEW_MAPS.house;
+const ROOMS_PREV = HOUSE_PREV.rooms.map(r => ({ x: r[0], y: r[1], w: r[2], h: r[3], c: r[4], n: r[5] }));
+const WALL_DATA = HOUSE_PREV.walls;
+const PREV_BLOCKS = HOUSE_PREV.blocks.map(b => ({ x: b[0], y: b[1], w: b[2], h: b[3] }));
+const SPAWNS = HOUSE_PREV.spawns.map(s => ({ x: s[0], y: s[1], c: s[2], n: s[3] }));
+function drawMap() {
+  const cv2 = document.getElementById('mapPrev');
+  const cx2 = cv2.getContext('2d');
+  const s = cv2.width / 2400;
+  cx2.fillStyle = '#0a0c10';
+  cx2.fillRect(0, 0, cv2.width, cv2.height);
+  for (const r of ROOMS_PREV) {
+    cx2.fillStyle = r.c;
+    cx2.fillRect(r.x * s, r.y * s, r.w * s, r.h * s);
+  }
+  for (const b of PREV_BLOCKS) {          // 家具/掩体(与游戏内 lowCovers 同源)
+    cx2.fillStyle = 'rgba(226,236,255,.13)';
+    cx2.fillRect(b.x * s, b.y * s, b.w * s, b.h * s);
+  }
+  for (const r of ROOMS_PREV) {
+    if (r.w * s < 34 || r.h * s < 12) continue;   // 过小的房间不标注, 避免糊成一团
+    cx2.fillStyle = 'rgba(255,255,255,.4)';
+    cx2.font = '600 ' + Math.max(10, Math.round(15 * s)) + 'px sans-serif';
+    cx2.textAlign = 'center';
+    cx2.fillText(r.n, (r.x + r.w / 2) * s, (r.y + r.h / 2 + 5) * s);
+  }
+  cx2.lineCap = 'round';
+  for (const w of WALL_DATA) {
+    cx2.strokeStyle = w[4] ? '#a5824f' : '#4d5668';
+    cx2.lineWidth = w[4] ? 4 : 5;
+    cx2.beginPath();
+    cx2.moveTo(w[0] * s, w[1] * s);
+    cx2.lineTo(w[2] * s, w[3] * s);
+    cx2.stroke();
+  }
+  for (const sp of SPAWNS) {
+    cx2.fillStyle = sp.c;
+    cx2.beginPath(); cx2.arc(sp.x * s, sp.y * s, 5, 0, Math.PI * 2); cx2.fill();
+    // 标签垫一层半透明底, 避免相邻出生点文字互相压在一起
+    cx2.font = '11px sans-serif';
+    cx2.textAlign = 'center';
+    // 无布局环境(自动化测试的 2D 上下文桩)下 measureText 可能无返回值 → 回退到估算宽度
+    let tw = 0;
+    try { const mt = cx2.measureText ? cx2.measureText(sp.n) : null; tw = (mt && typeof mt.width === 'number') ? mt.width : 0; } catch (e) { tw = 0; }
+    if (!tw) tw = String(sp.n).length * 7;
+    cx2.fillStyle = 'rgba(8,10,12,.72)';
+    cx2.fillRect(sp.x * s - tw / 2 - 4, (sp.y - 9) * s - 11, tw + 8, 14);
+    cx2.fillStyle = '#e8eef9';
+    cx2.fillText(sp.n, sp.x * s, (sp.y - 9) * s);
+  }
+  cx2.textAlign = 'left';
+}
+
+
+// ---------- 渲染 ----------
+const el = {
+  pts: document.getElementById('pts'), weaponInfo: document.getElementById('weaponInfo'),
+  stWins: document.getElementById('stWins'), stLosses: document.getElementById('stLosses'),
+  stKills: document.getElementById('stKills'), stStars: document.getElementById('stStars'),
+  stDmg: document.getElementById('stDmg'), stPts: document.getElementById('stPts'),
+  upList: document.getElementById('upgradeList'), toast: document.getElementById('toast'),
+};
+let toastT = null;
+let lastToastMsg = '';   // 测试钩子: 最近一次提示文案
+function toast(msg) {
+  lastToastMsg = msg;
+  if (el.toast) {
+    el.toast.textContent = msg;
+    el.toast.classList.add('show');
+    el.toast.style.opacity = '1';
+  }
+  if (toastT) clearTimeout(toastT);
+  toastT = setTimeout(() => { if (el.toast) { el.toast.classList.remove('show'); el.toast.style.opacity = '0'; } }, 1800);
+}
+// 武器面板: 图标 + 名称/简述 + 键值读数(伤害/射速/弹匣/散布)
+// class="weaponInfo" 保持不变(meta_test 断言 innerHTML 含武器名)
+const WEAPON_FA = { ar: 'fa-crosshairs', smg: 'fa-gun', shotgun: 'fa-bomb', sniper: 'fa-location-crosshairs', lmg: 'fa-bars-progress', dmr: 'fa-bullseye' };
+const WEAPON_BTN_ID = { ar: 'btnWAr', smg: 'btnWSmg', shotgun: 'btnWShotgun', sniper: 'btnWSniper', lmg: 'btnWLmg', dmr: 'btnWDmr' };
+function renderWeapons() {
+  for (const id in WEAPON_BTN_ID) {
+    const b = document.getElementById(WEAPON_BTN_ID[id]);
+    if (b) b.classList.toggle('sel', cfg.weapon === id);
+  }
+  const w = WEAPON_DEFS[cfg.weapon];
+  const dmgTxt = w.pellets ? w.dmg + '×' + w.pellets + ' 弹丸' : w.dmg;
+  el.weaponInfo.innerHTML =
+    '<b><i class="fas ' + (WEAPON_FA[cfg.weapon] || 'fa-gun') + '"></i> ' + w.name + '</b><br>' +
+    '<span class="mono" style="color:var(--fg-subtle);">DMG</span> ' + dmgTxt +
+    ' &nbsp;<span class="mono" style="color:var(--fg-subtle);">RPM</span> ' + w.rpm + '/s' +
+    ' &nbsp;<span class="mono" style="color:var(--fg-subtle);">MAG</span> ' + w.mag +
+    ' &nbsp;<span class="mono" style="color:var(--fg-subtle);">SPREAD</span> ' + w.spread +
+    '<br>' + w.desc;
+}
+function renderDiff() {
+  document.getElementById('diffEasy').classList.toggle('sel', cfg.diff === 'easy');
+  document.getElementById('diffNorm').classList.toggle('sel', cfg.diff === 'norm');
+  document.getElementById('diffHard').classList.toggle('sel', cfg.diff === 'hard');
+}
+function renderMap() {
+  document.getElementById('btnMapHouse').classList.toggle('sel', cfg.map === 'house');
+  document.getElementById('btnMapWarehouse').classList.toggle('sel', cfg.map === 'warehouse');
+  document.getElementById('btnMapFactory').classList.toggle('sel', cfg.map === 'factory');
+  document.getElementById('btnMapOffice').classList.toggle('sel', cfg.map === 'office');
+  document.getElementById('btnMapParking').classList.toggle('sel', cfg.map === 'parking');
+}
+// 成就墙: 与游戏页 ACHIEVEMENT_DEFS 保持一致的展示用清单(仅 id/名称/说明)
+const ACH_LIST = [
+  { id: 'firstWin', name: '首战告捷', desc: '赢得第一场战斗' },
+  { id: 'fastWin', name: '闪电行动', desc: '5 分钟内肃清敌人' },
+  { id: 'noReload', name: '弹无虚发', desc: '整局没有手动换弹并获胜' },
+  { id: 'sharpEye', name: '神枪手', desc: '命中率 ≥ 55% 获胜' },
+  { id: 'untouched', name: '无伤通关', desc: '满血获胜' },
+  { id: 'triple', name: '三连杀', desc: '单局 3 连杀' },
+  { id: 'grenadier', name: '爆破专家', desc: '单局手雷/炸药包击杀 ≥ 3 人' },
+  { id: 'sniperShot', name: '远程狙杀', desc: '单次击杀距离 ≥ 350px' },
+  { id: 'comeback', name: '绝地反击', desc: '血量低至 20% 后仍获胜' },
+  // v2 新增六项(A7): 9 → 15
+  { id: 'streak5', name: '五连杀', desc: '单局 5 连杀' },
+  { id: 'fastWin3', name: '闪电三星', desc: '3 分钟内拿三星' },
+  { id: 'longKill500', name: '超远狙杀', desc: '单次击杀距离 ≥ 500px' },
+  { id: 'purist', name: '纯枪械通关', desc: '整局不投掷物并获胜' },
+  { id: 'sidearmWin', name: '手枪通关', desc: '主武器一枪未开并获胜' },
+  { id: 'cartograph', name: '全图制霸', desc: '每张战役地图都赢过至少一次' },
+];
+// 成就图标(与 id 一一对应, 全部为本地 FontAwesome 免费图标)
+const ACH_FA = {
+  firstWin: 'fa-trophy', fastWin: 'fa-bolt-lightning', noReload: 'fa-box-open', sharpEye: 'fa-crosshairs',
+  untouched: 'fa-shield-halved', triple: 'fa-fire', grenadier: 'fa-bomb', sniperShot: 'fa-location-crosshairs',
+  comeback: 'fa-heart-pulse', streak5: 'fa-fire-flame-curved', fastWin3: 'fa-stopwatch',
+  longKill500: 'fa-bullseye', purist: 'fa-hand-fist', sidearmWin: 'fa-gun', cartograph: 'fa-map-location-dot',
+};
+let achFilter = 'all';   // A7: 成就墙筛选 all | on | off
+function renderAch() {
+  const el2 = document.getElementById('achList');
+  if (!el2) return;
+  const ach = (save.stats && save.stats.ach) || {};
+  let on = 0;
+  for (const a of ACH_LIST) if (ach[a.id]) on++;
+  // 筛选按钮
+  const fb = document.getElementById('achFilter');
+  if (fb) {
+    const opts = [['all', '全部 ' + ACH_LIST.length], ['on', '已解锁 ' + on], ['off', '未解锁 ' + (ACH_LIST.length - on)]];
+    let fh = '';
+    for (const [k, lbl] of opts) fh += '<button class="fbtn' + (achFilter === k ? ' sel' : '') + '" data-f="' + k + '">' + lbl + '</button>';
+    fb.className = 'achFilterRow';
+    fb.innerHTML = fh;
+    const btns = fb.querySelectorAll ? fb.querySelectorAll('button[data-f]') : [];
+    for (const b of btns) b.onclick = () => { achFilter = b.getAttribute('data-f'); renderAch(); };
+  }
+  let html = '';
+  for (const a of ACH_LIST) {
+    const got = !!ach[a.id];
+    if (achFilter === 'on' && !got) continue;
+    if (achFilter === 'off' && got) continue;
+    html += '<div class="achRow' + (got ? ' on' : '') + '">' +
+      '<div class="ac"><i class="fas ' + (ACH_FA[a.id] || 'fa-star') + '"></i></div>' +
+      '<div class="ai"><span class="an">' + a.name + '</span><div class="ad">' + a.desc + '</div></div>' +
+      (got ? '<span class="aSt">已解锁</span>' : '') +
+      '</div>';
+  }
+  el2.innerHTML = html;
+  const cnt = document.getElementById('achCount');
+  if (cnt) cnt.textContent = on + '/' + ACH_LIST.length;
+}
+// 每日挑战纪录: 最近 7 天(含今天)的星级/用时; 只读展示, 数据由游戏页写入
+function dailyKeyOf(d) {
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+function renderDaily() {
+  const el = document.getElementById('dailyList');
+  const td = document.getElementById('dlToday');
+  if (!el) return;
+  const daily = (save && save.daily) || {};
+  const nowD = new Date();
+  if (td) {
+    // 今日规则(与游戏页 DAILY_RULES/dailySeed 同源提示, 仅展示; 顺序必须与 breach.html 一致)
+    // 注意: 游戏页 dailySeed() 返回 (raw % 1000), 规则下标是 (raw % 1000) % 规则数 ——
+    // 这里必须照样先 %1000 再取模。规则数为 4 时 1000 能被整除, 两种写法恰好等价;
+    // 规则数改成 7(或其他不整除 1000 的值)后若不先 %1000 就会与游戏页选出不同的规则。
+    const RULES = ['弹药紧缺', '限时突击', '精英敌人', '玻璃大炮', '断绝补给', '手枪行动', '夜战行动'];
+    let h = nowD.getFullYear() * 10000 + (nowD.getMonth() + 1) * 100 + nowD.getDate();
+    h = (h ^ (h >> 13)) * 0x5bd1e995; h ^= h >> 15;
+    const rule = RULES[(h >>> 0) % 1000 % RULES.length];
+    td.textContent = '今日规则：' + rule + '（去游戏页「每日挑战」游玩）';
+  }
+  const days = [];
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date(nowD.getFullYear(), nowD.getMonth(), nowD.getDate() - i);
+    days.push({ key: dailyKeyOf(d), d: d, rec: daily[dailyKeyOf(d)] });
+  }
+  let html = '';
+  for (const dd of days) {
+    const r = dd.rec;
+    const lbl = (dd.d.getMonth() + 1) + '/' + dd.d.getDate() + (dd.d.toDateString() === nowD.toDateString() ? '(今)' : '');
+    if (r && r.stars > 0) {
+      const m = Math.floor((r.time || 0) / 60), s = Math.floor((r.time || 0) % 60);
+      html += '<div class="dlRow"><span class="dlD">' + lbl + '</span><b>' + faStars(Math.min(3, r.stars)) + '</b><span class="dlT">' + m + ':' + (s < 10 ? '0' : '') + s + '</span></div>';
+    } else {
+      html += '<div class="dlRow none"><span class="dlD">' + lbl + '</span><span style="color:var(--border-strong);">—</span><span class="dlT">未挑战</span></div>';
+    }
+  }
+  el.innerHTML = html;
+}
+function renderStats() {
+  const st = save.stats || {};
+  el.stWins.textContent = st.wins || 0;
+  el.stLosses.textContent = st.losses || 0;
+  el.stKills.textContent = st.kills || 0;
+  el.stDmg.textContent = st.damage || 0;
+  el.stPts.textContent = save.points || 0;
+  el.pts.textContent = '军功点 ' + (save.points || 0);
+  const bs = Math.max(0, Math.min(3, (st.bestStars || 0) | 0));   // 修复: 越界会让 repeat(负数) 抛 RangeError 中断后续渲染
+  el.stStars.innerHTML = faStars(bs);   // v3.2: 星级改用 FontAwesome 图标
+  // v2 累计统计(A5)
+  const set = (id, txt) => { const n = document.getElementById(id); if (n) n.textContent = txt; };
+  const shots = st.shots || 0, hits = st.hits || 0;
+  set('stAcc', shots > 0 ? Math.round(hits / shots * 100) + '%' : '—');
+  set('stShots', shots + ' / ' + hits);
+  set('stLong', Math.round(st.longKill || 0) + ' px');
+  set('stStreak', st.bestStreak || 0);
+  set('stGKills', st.gKills || 0);
+  const mins = Math.floor((st.time || 0) / 60);
+  set('stTime', mins >= 60 ? Math.floor(mins / 60) + ' 时 ' + (mins % 60) + ' 分' : mins + ' 分');
+  set('stWinStreak', (st.winStreak || 0) + ' / ' + (st.bestWinStreak || 0));
+  set('stStreet', save.streetBest ? (save.streetBest + ' 分 / ' + (save.streetWaves || 0) + ' 波') : '尚无');
+  set('stBosses', save.streetBosses || 0);
+  renderSlots();
+}
+// 存档槽位切换(A4): 3 个按钮, 显示各槽军衔 / 空档案; 点击切换活动槽位并整页重载配置
+function slotSummary(n) {
+  let sv = null;
+  try { sv = JSON.parse(lsGet(saveKeyFor(n)) || 'null'); } catch (e) { }
+  if (!sv) return '空档案';
+  const r = Math.max(0, parseInt(sv.rank) || 0);
+  return rankTitle(r) + ' · ' + Math.max(0, parseInt(sv.points) || 0) + '点';
+}
+function renderSlots() {
+  const box = document.getElementById('slotBtns');
+  if (!box) return;
+  const cur = activeSlot();
+  let h = '';
+  for (let n = 1; n <= SLOT_N; n++) {
+    h += '<button class="slotBtn' + (n === cur ? ' sel' : '') + '" data-slot="' + n + '" title="' +
+      slotSummary(n).replace(/"/g, '') + '">档案' + n + '</button>';
+  }
+  box.innerHTML = h;
+  const bs = box.querySelectorAll ? box.querySelectorAll('button[data-slot]') : [];
+  for (const b of bs) {
+    b.onclick = () => {
+      const n = parseInt(b.getAttribute('data-slot')) || 1;
+      if (n === activeSlot()) return;
+      setActiveSlot(n);
+      loadAll();          // 切换到该槽位的配置与存档
+      renderAll();
+      toast('已切换到档案 ' + n + '：' + slotSummary(n));
+    };
+  }
+}
+function renderUpgrades() {
+  // 动态生成升级列表(v2 共 18 项): 图标 + 名称/说明 + 等级圆点 + 购买按钮。
+  const lvOf = (d) => { const raw = parseInt(cfg.upgrades[d.id], 10); return Number.isFinite(raw) ? Math.max(0, Math.min(d.max, raw)) : 0; };   // 等级钳制 0..max(修复: 脏档越界等级崩渲染/误判已满)
+  // 按钮状态: 满级→禁用"已满"; 点数不足→禁用; 可购买→点击扣点并写入配置。
+  el.upList.innerHTML = '';
+  for (const d of UPGRADE_DEFS) {
+    const lv = lvOf(d);
+    const cost = lv < d.max ? d.cost[lv] : null;
+    const row = document.createElement('div');
+    row.className = 'upRow' + (cost === null ? ' max' : '');
+    // v3.2: 升级等级图钉也用 FontAwesome 圆点(实心=已买, 空心=未买)
+    const pips = '<i class="fas fa-circle"></i>'.repeat(lv) + '<span class="off">' + '<i class="far fa-circle"></i>'.repeat(Math.max(0, d.max - lv)) + '</span>';
+    row.innerHTML =
+      '<div class="upIcon"><i class="fas ' + d.fa + '"></i></div>' +
+      '<div class="upInfo"><span class="nm">' + d.name + '</span><div class="ds">' + d.desc + '</div></div>' +
+      '<div class="pips">' + pips + '</div>' +
+      '<button class="upBtn' + (cost === null ? ' maxed' : '') + '" id="upBtn_' + d.id + '"' + (cost === null ? ' disabled' : '') + '>' + (cost === null ? '已满' : '+' + cost) + '</button>';
+    el.upList.appendChild(row);
+  }
+  for (const d of UPGRADE_DEFS) {
+    const lv = lvOf(d);
+    const cost = lv < d.max ? d.cost[lv] : null;
+    const btn = document.getElementById('upBtn_' + d.id);
+    if (btn && cost !== null) {
+      btn.disabled = (save.points || 0) < cost;
+      btn.onclick = () => {
+        if ((save.points || 0) < cost) { toast('军功点不足！'); return; }
+        const name = d.name, nextLv = lv + 1;
+        save.points -= cost;
+        cfg.upgrades[d.id] = nextLv;
+        // P0-3: 先扣点后落盘, 且以"落盘是否真的成功"为准(失败时 persistBoth 已把内存回滚成磁盘状态)
+        if (!persistBoth()) { renderAll(); toast('保存失败：本地存储不可用或已满，未扣军功点'); return; }
+        renderUpgrades(); renderStats();
+        toast('已升级：' + name + ' +' + nextLv);
+      };
+    }
+  }
+}
+// 军衔: 消耗军功点逐级晋升(纯荣誉, 无上限), 给"升满后溢出的军功点"一个去处
+const RANK_TITLES = [
+  '列兵', '上等兵', '下士', '中士', '上士', '军士长',
+  '少尉', '中尉', '上尉', '少校', '中校', '上校',
+  '大校', '少将', '中将', '上将', '五星上将'
+];
+function rankTitle(r) {
+  r = Math.max(0, r | 0);
+  return r < RANK_TITLES.length ? RANK_TITLES[r] : '统帅·' + (r - RANK_TITLES.length + 1);
+}
+function rankCost(r) {   // 下一级晋升花费, 随等级线性增长 → 无限消费口
+  return 4 + (r | 0) * 3;
+}
+// 军衔印章列: 把"晋升记录"从一行文字变成一列看得见的钢印(当前级别用黄蜡笔高亮)。
+// 无限等级下只渲染最近 24 枚, 更早的用省略号占位, 免得页面无限变长。
+let freshStamp = -1;
+function renderRankStamps() {
+  const box = document.getElementById('rankStamps');
+  if (!box) return;
+  const r = Math.max(0, (save && save.rank) | 0);
+  const from = Math.max(0, r - 23);
+  let h = '';
+  if (from > 0) h += '<span class="stamp">…</span>';
+  for (let i = from; i <= r; i++) {
+    const fresh = (i === freshStamp) ? ' fresh' : '';
+    const now = (i === r) ? ' now' : '';
+    h += '<span class="stamp' + now + fresh + '">' + rankTitle(i) + '</span>';
+  }
+  box.innerHTML = h;
+  // 盖章动画只播一次: 动画跑完后清掉标记, 之后的重渲染不会再触发
+  if (freshStamp >= 0) setTimeout(() => { freshStamp = -1; }, 520);
+}
+function renderRank() {
+  const r = (save.rank || 0) | 0;
+  const elR = document.getElementById('stRank');
+  const elB = document.getElementById('btnRankUp');
+  const elI = document.getElementById('rankInfo');
+  if (elR) elR.textContent = rankTitle(r);
+  if (elI) elI.innerHTML = '<i class="fas fa-circle-info note-i"></i>晋升 → ' + rankTitle(r + 1) + '，需 ' + rankCost(r) + ' 军功点';
+  renderRankStamps();   // 印章列(每级一枚钢印)
+  if (elB) {
+    elB.disabled = (save.points || 0) < rankCost(r);
+    elB.onclick = () => {
+      const need = Math.max(1, rankCost(r));   // 钳制: 即使脏档也禁止负花费(修复: 导入负 rank 曾可白刷军功点)
+      if ((save.points || 0) < need) { toast('军功点不足！'); return; }
+      const fromT = rankTitle(r);
+      save.points -= need;
+      save.rank = r + 1;
+      // P0-3: 同样以真实落盘成败为准 —— 失败时读回真实落盘内容覆盖内存, 军功点不会被扣
+      if (!persistSaveOk()) { loadAllNoThrow(); renderAll(); toast('保存失败：本地存储不可用或已满，未扣军功点'); return; }
+      freshStamp = save.rank;   // 这一枚要播"盖章"动画
+      renderRank(); renderStats();
+      toast('晋升成功：' + fromT + ' → ' + rankTitle(r + 1));
+    };
+  }
+}
+function renderAll() { renderWeapons(); renderDiff(); renderMap(); renderUpgrades(); renderStats(); renderAch(); renderDaily(); renderRank(); }
+
+// ---------- 事件 ----------
+function setDiff(d) {
+  cfg.diff = d;
+  persistCfg();
+  renderDiff();
+}
+function setWeapon(w) {
+  cfg.weapon = w;
+  persistCfg();
+  renderWeapons();
+}
+document.getElementById('btnWAr').onclick = () => setWeapon('ar');
+document.getElementById('btnWSmg').onclick = () => setWeapon('smg');
+document.getElementById('btnWShotgun').onclick = () => setWeapon('shotgun');
+document.getElementById('btnWSniper').onclick = () => setWeapon('sniper');
+document.getElementById('btnWLmg').onclick = () => setWeapon('lmg');
+document.getElementById('btnWDmr').onclick = () => setWeapon('dmr');
+document.getElementById('diffEasy').onclick = () => setDiff('easy');
+document.getElementById('diffNorm').onclick = () => setDiff('norm');
+document.getElementById('diffHard').onclick = () => setDiff('hard');
+function setMapSel(m) {
+  cfg.map = m;
+  persistCfg();
+  renderMap();
+}
+document.getElementById('btnMapHouse').onclick = () => setMapSel('house');
+document.getElementById('btnMapWarehouse').onclick = () => setMapSel('warehouse');
+document.getElementById('btnMapFactory').onclick = () => setMapSel('factory');
+document.getElementById('btnMapOffice').onclick = () => setMapSel('office');
+document.getElementById('btnMapParking').onclick = () => setMapSel('parking');
+function goGame() {
+  persistCfg();
+  try { location.href = GAME_FILE; } catch (e) { }
+}
+function goStreet() {
+  persistCfg();
+  try { location.href = STREET_FILE; } catch (e) { }
+}
+// >>> ACCT-CRYPTO-BEGIN (v3.1 加密原语: 四个页面逐字节一致, 改一处必须同步四处)
+/* ---------- v3.1: 存档加密导出(可选口令) ---------- */
+// 为什么加: 导出的 json 用记事本就能读到军衔/战绩, 分享时"随手改一改"太容易; 勾选「加密导出」
+// 后可给文件设口令, 对方必须知道口令才能导入。
+// 实现全部本地纯 JS(不联网、不引库、不用 WebCrypto —— 后者要 https 或 localhost, 且是异步的):
+//   · SHA-256 自实现(纯整数位运算)作为唯一原语;
+//   · 口令派生 = SHA256 迭代(iter/salt 都写进文件, 导入按文件里的参数重算, 老文件永远打得开);
+//   · 加密 = SHA-256-CTR 流加密(keystream 块 = SHA256(encKey + nonce + 计数器));
+//   · 完整性与口令校验 = HMAC-SHA256(macKey, 密文) 截断 16 字节 —— 口令错或文件被改都在这挡住。
+// 定位: 防随手翻看 / 防转发丢档的口令保护, 不是给高价值数据用的密码学产品。
+const ENC_FORMAT = 'sha256-ctr-hmac-v1';
+const ENC_ITER = 40000;         // 口令派生迭代次数(写进文件; 导入以文件里的值为准)
+const ENC_ITER_MAX = 400000;    // 上限: 防止手改 iter 把浏览器卡死
+const SHA_K = new Uint32Array([
+  0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
+  0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3, 0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174,
+  0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc, 0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da,
+  0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7, 0xc6e00bf3, 0xd5a79147, 0x06ca6351, 0x14292967,
+  0x27b70a85, 0x2e1b2138, 0x4d2c6dfc, 0x53380d13, 0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85,
+  0xa2bfe8a1, 0xa81a664b, 0xc24b8b70, 0xc76c51a3, 0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070,
+  0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3,
+  0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2]);
+function sha256(msg) {
+  const H = new Uint32Array([0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a,
+                             0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19]);
+  const len = msg.length, bitLen = len * 8;
+  const total = ((len + 72) >> 6) << 6;            // 0x80 + 8 字节长度 → 补齐到 64 的整数倍
+  const buf = new Uint8Array(total);
+  buf.set(msg); buf[len] = 0x80;
+  const hi = Math.floor(bitLen / 0x100000000), lo = bitLen >>> 0;
+  buf[total - 8] = (hi >>> 24) & 255; buf[total - 7] = (hi >>> 16) & 255; buf[total - 6] = (hi >>> 8) & 255; buf[total - 5] = hi & 255;
+  buf[total - 4] = (lo >>> 24) & 255; buf[total - 3] = (lo >>> 16) & 255; buf[total - 2] = (lo >>> 8) & 255; buf[total - 1] = lo & 255;
+  const w = new Uint32Array(64);
+  for (let off = 0; off < total; off += 64) {
+    for (let i = 0; i < 16; i++) w[i] = ((buf[off + i * 4] << 24) | (buf[off + i * 4 + 1] << 16) | (buf[off + i * 4 + 2] << 8) | buf[off + i * 4 + 3]) >>> 0;
+    for (let i = 16; i < 64; i++) {
+      const x = w[i - 15], y = w[i - 2];
+      const s0 = (((x >>> 7) | (x << 25)) ^ ((x >>> 18) | (x << 14)) ^ (x >>> 3)) >>> 0;
+      const s1 = (((y >>> 17) | (y << 15)) ^ ((y >>> 19) | (y << 13)) ^ (y >>> 10)) >>> 0;
+      w[i] = (w[i - 16] + s0 + w[i - 7] + s1) >>> 0;
+    }
+    let a = H[0], b = H[1], c = H[2], d = H[3], e = H[4], f = H[5], g = H[6], h = H[7];
+    for (let i = 0; i < 64; i++) {
+      const S1 = (((e >>> 6) | (e << 26)) ^ ((e >>> 11) | (e << 21)) ^ ((e >>> 25) | (e << 7))) >>> 0;
+      const ch = (e & f) ^ (~e & g);
+      const t1 = (h + S1 + ch + SHA_K[i] + w[i]) >>> 0;
+      const S0 = (((a >>> 2) | (a << 30)) ^ ((a >>> 13) | (a << 19)) ^ ((a >>> 22) | (a << 10))) >>> 0;
+      const maj = (a & b) ^ (a & c) ^ (b & c);
+      const t2 = (S0 + maj) >>> 0;
+      h = g; g = f; f = e; e = (d + t1) >>> 0; d = c; c = b; b = a; a = (t1 + t2) >>> 0;
+    }
+    H[0] = (H[0] + a) >>> 0; H[1] = (H[1] + b) >>> 0; H[2] = (H[2] + c) >>> 0; H[3] = (H[3] + d) >>> 0;
+    H[4] = (H[4] + e) >>> 0; H[5] = (H[5] + f) >>> 0; H[6] = (H[6] + g) >>> 0; H[7] = (H[7] + h) >>> 0;
+  }
+  const out = new Uint8Array(32);
+  for (let i = 0; i < 8; i++) {
+    out[i * 4] = (H[i] >>> 24) & 255; out[i * 4 + 1] = (H[i] >>> 16) & 255;
+    out[i * 4 + 2] = (H[i] >>> 8) & 255; out[i * 4 + 3] = H[i] & 255;
+  }
+  return out;
+}
+function bytesCat(a, b, c) {
+  const out = new Uint8Array(a.length + b.length + (c ? c.length : 0));
+  out.set(a, 0); out.set(b, a.length); if (c) out.set(c, a.length + b.length);
+  return out;
+}
+function hmacSha256(key, msg) {
+  const k = key.length > 64 ? sha256(key) : key;
+  const kk = new Uint8Array(64); kk.set(k);
+  const ip = new Uint8Array(64 + msg.length), op = new Uint8Array(96);
+  for (let i = 0; i < 64; i++) { ip[i] = kk[i] ^ 0x36; op[i] = kk[i] ^ 0x5c; }
+  ip.set(msg, 64);
+  op.set(sha256(ip), 64);
+  return sha256(op);
+}
+// 口令派生: 首轮把口令拌进 salt 与 purpose, 之后每轮 sha256(上一轮结果 + salt + purpose)。
+// purpose 让同一个口令派生两把互不相干的密钥(1=加密, 2=校验)。
+function deriveKey(pw, salt, iter, purpose) {
+  const tail = new Uint8Array(salt.length + 1);
+  tail.set(salt); tail[salt.length] = purpose;
+  const buf = new Uint8Array(32 + tail.length);
+  buf.set(tail, 32);
+  let h = sha256(bytesCat(pw, tail));
+  for (let i = 1; i < iter; i++) { buf.set(h, 0); h = sha256(buf); }
+  return h;
+}
+function streamXor(data, key, nonce) {
+  const out = new Uint8Array(data.length);
+  const block = new Uint8Array(32 + nonce.length + 4);
+  block.set(key, 0); block.set(nonce, 32);
+  const p = 32 + nonce.length;
+  for (let off = 0, ctr = 0; off < data.length; off += 32, ctr++) {
+    block[p] = (ctr >>> 24) & 255; block[p + 1] = (ctr >>> 16) & 255; block[p + 2] = (ctr >>> 8) & 255; block[p + 3] = ctr & 255;
+    const ks = sha256(block);
+    const n = Math.min(32, data.length - off);
+    for (let i = 0; i < n; i++) out[off + i] = data[off + i] ^ ks[i];
+  }
+  return out;
+}
+const B64_ALPHA = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+function b64enc(bytes) {
+  let s = '';
+  for (let i = 0; i < bytes.length; i += 3) {
+    const b0 = bytes[i], b1 = bytes[i + 1], b2 = bytes[i + 2];
+    s += B64_ALPHA[b0 >> 2];
+    s += B64_ALPHA[((b0 & 3) << 4) | ((b1 === undefined ? 0 : b1) >> 4)];
+    s += b1 === undefined ? '=' : B64_ALPHA[((b1 & 15) << 2) | ((b2 === undefined ? 0 : b2) >> 6)];
+    s += b2 === undefined ? '=' : B64_ALPHA[b2 & 63];
+  }
+  return s;
+}
+function b64dec(str) {
+  if (typeof str !== 'string') return null;
+  const clean = str.replace(/[^A-Za-z0-9+\/]/g, '');
+  const out = new Uint8Array(Math.floor(clean.length * 3 / 4));
+  let oi = 0, acc = 0, bits = 0;
+  for (let i = 0; i < clean.length; i++) {
+    const v = B64_ALPHA.indexOf(clean.charAt(i));
+    if (v < 0) continue;
+    acc = (acc << 6) | v; bits += 6;
+    if (bits >= 8) { bits -= 8; out[oi++] = (acc >> bits) & 255; }
+  }
+  return oi === out.length ? out : out.slice(0, oi);
+}
+function utf8Enc(str) {
+  const s = String(str), out = [];
+  for (let i = 0; i < s.length; i++) {
+    const c = s.charCodeAt(i);
+    if (c < 0x80) out.push(c);
+    else if (c < 0x800) out.push(0xc0 | (c >> 6), 0x80 | (c & 63));
+    else if (c >= 0xd800 && c <= 0xdbff && i + 1 < s.length && s.charCodeAt(i + 1) >= 0xdc00 && s.charCodeAt(i + 1) <= 0xdfff) {
+      const cp = 0x10000 + ((c - 0xd800) << 10) + (s.charCodeAt(++i) - 0xdc00);
+      out.push(0xf0 | (cp >> 18), 0x80 | ((cp >> 12) & 63), 0x80 | ((cp >> 6) & 63), 0x80 | (cp & 63));
+    } else out.push(0xe0 | (c >> 12), 0x80 | ((c >> 6) & 63), 0x80 | (c & 63));
+  }
+  return new Uint8Array(out);
+}
+function utf8Dec(b) {
+  let s = '';
+  for (let i = 0; i < b.length;) {
+    const c = b[i++];
+    if (c < 0x80) s += String.fromCharCode(c);
+    else if (c < 0xe0) s += String.fromCharCode(((c & 31) << 6) | (b[i++] & 63));
+    else if (c < 0xf0) s += String.fromCharCode(((c & 15) << 12) | ((b[i++] & 63) << 6) | (b[i++] & 63));
+    else {
+      const v = (((c & 7) << 18) | ((b[i++] & 63) << 12) | ((b[i++] & 63) << 6) | (b[i++] & 63)) - 0x10000;
+      s += String.fromCharCode(0xd800 + (v >> 10), 0xdc00 + (v & 1023));
+    }
+  }
+  return s;
+}
+function randBytes(n) {
+  const b = new Uint8Array(n);
+  try {
+    if (typeof crypto !== 'undefined' && crypto && crypto.getRandomValues) { crypto.getRandomValues(b); return b; }
+  } catch (e) { }
+  for (let i = 0; i < n; i++) b[i] = (Math.random() * 256) | 0;
+  return b;
+}
+function bytesEq(a, b) {
+  if (!a || !b || a.length !== b.length) return false;
+  let d = 0;
+  for (let i = 0; i < a.length; i++) d |= a[i] ^ b[i];
+  return d === 0;
+}
+// iter 允许越界钳制(测试与将来调参用): 缺省 = 当前 ENC_ITER
+function clampIter(v) { const n = Math.floor(Number(v) || ENC_ITER); return Math.max(1, Math.min(ENC_ITER_MAX, n)); }
+function encryptBackup(data, password, iter) {
+  try {
+    const pw = utf8Enc(password === undefined || password === null ? '' : password);
+    if (!pw.length) return null;                              // 空口令不加密(否则等于没设)
+    const it = clampIter(iter);
+    const salt = randBytes(16), nonce = randBytes(16);
+    const encKey = deriveKey(pw, salt, it, 1);
+    const macKey = deriveKey(pw, salt, it, 2);
+    const ct = streamXor(utf8Enc(JSON.stringify(data)), encKey, nonce);
+    return {
+      app: 'breach-door-cqb', enc: ENC_FORMAT, ver: 1, iter: it,
+      at: (data && data.at) || new Date().toISOString(),
+      salt: b64enc(salt), nonce: b64enc(nonce),
+      tag: b64enc(hmacSha256(macKey, ct).slice(0, 16)), data: b64enc(ct)
+    };
+  } catch (e) { return null; }
+}
+function decryptBackup(env, password) {
+  try {
+    if (!env || typeof env !== 'object' || env.enc !== ENC_FORMAT) return { ok: false, err: 'format' };
+    if (env.app !== 'breach-door-cqb') return { ok: false, err: 'app' };
+    const salt = b64dec(env.salt), nonce = b64dec(env.nonce), ct = b64dec(env.data), tag = b64dec(env.tag);
+    if (!salt || !salt.length || !nonce || !nonce.length || !ct || !tag || !tag.length) return { ok: false, err: 'format' };
+    // iter 由文件决定(导入按文件里的参数重算 → 老文件永远打得开);
+    // 但缺 iter / 越界(含手改超大)一律当场判格式错误: 不进 KDF, 不给"用一个超大迭代数把页面拖死"的机会
+    const iter = Math.floor(Number(env.iter));
+    if (!isFinite(iter) || iter < 1 || iter > ENC_ITER_MAX) return { ok: false, err: 'format' };
+    const pw = utf8Enc(password === undefined || password === null ? '' : password);
+    const encKey = deriveKey(pw, salt, iter, 1);
+    const macKey = deriveKey(pw, salt, iter, 2);
+    if (!bytesEq(hmacSha256(macKey, ct).slice(0, 16), tag)) return { ok: false, err: 'auth' };
+    const obj = JSON.parse(utf8Dec(streamXor(ct, encKey, nonce)));
+    if (!obj || typeof obj !== 'object' || obj.app !== 'breach-door-cqb') return { ok: false, err: 'app' };
+    return { ok: true, data: obj };
+  } catch (e) { return { ok: false, err: 'format' }; }
+}
+// <<< ACCT-CRYPTO-END
+// >>> ACCT-CORE-BEGIN (v3.2 账户与本地加密存储: 四个页面逐字节一致, 由 tests/account_test.js 守护)
+/* ============================================================================
+   v3.2 · 账户与本地加密存储(四个页面各一份, 逐字节一致, 由 tests/account_test.js 守护)
+   ----------------------------------------------------------------------------
+   为什么加: 存档摊在 localStorage 里时, 同一台机器的任何人都能打开页面看到、甚至改掉军衔与
+   战绩; 加一层"账户"之后, 进度与设置都以**密文**落盘, 进游戏前必须输入口令。
+   设计(与"单机 / 离线 / 零依赖"底线不冲突):
+     · 账户清单 breach_game_accts 是**明文**的: 只有用户名 / 盐 / 迭代数 / 口令校验值 / 指纹。
+       没有口令, 也没有任何进度 —— 口令只用来派生密钥, 从不落盘。
+     · 账户模式下, 进度与设置写进**带账户前缀的键**, 值一律是信封(密文 + 随机数 + 校验码):
+         breach_game_acct_<id>_save / _cfg / _set (以及 _s2 / _s3)
+       页面里读写的仍是"基础键名"(breach_game_save 等), 命名空间与加解密对页面透明。
+     · 解锁状态(会话)放 sessionStorage: 同一标签页内跳转(主页→整备→战役)不会反复要口令,
+       关掉标签页即失效, 下次还要输。会话里存的是本次会话用的数据密钥。
+       说明: 会话密钥是明文放在 sessionStorage 里的 —— 同机开 devtools 的人能拿到。
+       本功能挡的是"随手翻看 / 随手改档"(家人、同事、共享机器), 不是防有心人; 与 v3.1 的
+       加密导出同一口径, 别把它当银行级保护。
+     · 游客模式: 不设口令, 进度走**旧键名且明文**, 并且**每次进入游客模式就把游客进度清空**
+       (每次进游戏都是从零开始)。在同一标签页内继续跳转不会反复清 —— 否则打到一半切个页面
+       进度就没了。
+     · 没建过账户 = 完全保持旧行为(旧键名、明文、无锁): 老档与既有自动化测试不受影响。
+   ============================================================================ */
+const ACCT_KEY = 'breach_game_accts';      // 账户清单(明文; 不含口令与进度)
+const ACCT_SESS = 'breach_game_session';   // 会话(sessionStorage)
+const ACCT_VER_TAG = 'breach-door-cqb/acct-ver';
+const ACCT_STORE_ENC = 'acct-store-v1';    // 落盘信封的算法标识(区别于 v3.1 的导出文件)
+const ACCT_ITER = ENC_ITER;                // 复用 v3.1 的迭代次数(40000)
+const ACCT_MAX = 8;                        // 账户数量上限(单机共享, 8 个足够且不至于把界面撑爆)
+// 账户命名空间只覆盖这几把"进度与设置"键; 槽位号 / 账户清单 / 会话仍是全局明文键
+const ACCT_BASES = { save: 1, cfg: 1, set: 1, save_s2: 1, save_s3: 1, cfg_s2: 1, cfg_s3: 1 };
+
+/* ---------- 底层读写(页面自己的 lsGet/lsSet 会被改写成走 vault*) ---------- */
+function _lsHas() { try { return typeof localStorage !== 'undefined' && !!localStorage; } catch (e) { return false; } }
+function _lsGet(k) { try { if (!_lsHas()) return null; const v = localStorage.getItem(k); return (v === undefined) ? null : v; } catch (e) { return null; } }
+function _lsSet(k, v) { try { if (!_lsHas()) return false; localStorage.setItem(k, String(v)); return true; } catch (e) { return false; } }
+function _lsDel(k) { try { if (!_lsHas()) return false; localStorage.removeItem(k); return true; } catch (e) { return false; } }
+// sessionStorage 不可用(某些浏览器对 file:// 的限制/隐私模式)时退回"本页面内存会话":
+// 功能不受影响, 只是每次跳页都要重新输口令
+const _sessMem = { v: null };
+function _ssGet() {
+  try { if (typeof sessionStorage !== 'undefined' && sessionStorage) return sessionStorage.getItem(ACCT_SESS); } catch (e) { }
+  return _sessMem.v;
+}
+function _ssSet(v) {
+  try { if (typeof sessionStorage !== 'undefined' && sessionStorage) { sessionStorage.setItem(ACCT_SESS, v); return true; } } catch (e) { }
+  _sessMem.v = v; return true;
+}
+function _ssDel() {
+  try { if (typeof sessionStorage !== 'undefined' && sessionStorage) sessionStorage.removeItem(ACCT_SESS); } catch (e) { }
+  _sessMem.v = null;
+}
+function hexOf(b) { let s = ''; for (let i = 0; i < b.length; i++) s += (b[i] < 16 ? '0' : '') + b[i].toString(16); return s; }
+
+/* ---------- 账户清单 ---------- */
+function acctRaw() {
+  try {
+    const o = JSON.parse(_lsGet(ACCT_KEY) || '{}');
+    return (o && typeof o === 'object') ? o : {};
+  } catch (e) { return {}; }
+}
+function acctList() {
+  const o = acctRaw();
+  if (!o || !(o.list instanceof Array)) return [];
+  return o.list.filter(r => r && typeof r === 'object'
+    && typeof r.id === 'string' && r.id
+    && typeof r.user === 'string' && r.user
+    && typeof r.salt === 'string' && r.salt
+    && typeof r.ver === 'string' && r.ver);
+}
+function acctFind(id) { const l = acctList(); for (let i = 0; i < l.length; i++) if (l[i].id === id) return l[i]; return null; }
+function acctWriteList(list, last) {
+  const o = acctRaw();
+  o.v = 1; o.app = 'breach-door-cqb'; o.list = list;
+  if (last !== undefined) o.last = last;
+  return _lsSet(ACCT_KEY, JSON.stringify(o));
+}
+function acctLastId() { const o = acctRaw(); return (typeof o.last === 'string') ? o.last : ''; }
+function acctNewId() { return hexOf(randBytes(6)); }
+function acctNormPw(pw) { return String(pw === undefined || pw === null ? '' : pw); }
+function acctIterOf(rec) { const n = Math.floor(Number(rec && rec.iter)); return (isFinite(n) && n >= 1 && n <= ENC_ITER_MAX) ? n : ACCT_ITER; }
+
+/* ---------- 密钥派生 ---------- */
+// 一次 KDF 派生"主密钥", 再用三个用途字节切出三把互不相干的钥匙 ——
+// 校验口令只需要一把短校验值, 不该为此多烧一遍 4 万次迭代(登录因此约 80ms 而不是 240ms)。
+function acctKeys(pw, salt, iter) {
+  const master = deriveKey(utf8Enc(acctNormPw(pw)), salt, iter, 0);
+  return {
+    data: sha256(bytesCat(master, new Uint8Array([1]))),
+    mac: sha256(bytesCat(master, new Uint8Array([2]))),
+    ver: sha256(bytesCat(master, new Uint8Array([3]))),
+  };
+}
+function acctVerifier(keys) { return b64enc(hmacSha256(keys.ver, utf8Enc(ACCT_VER_TAG)).slice(0, 16)); }
+function acctFingerprint(user, saltB64, ver) { return b64enc(sha256(utf8Enc(user + '|' + saltB64 + '|' + ver)).slice(0, 12)); }
+
+/* ---------- 会话(解锁状态) ---------- */
+function sessGet() {
+  const raw = _ssGet();
+  if (!raw) return null;
+  try {
+    const s = JSON.parse(raw);
+    if (!s || typeof s !== 'object' || s.v !== 1) return null;
+    if (s.guest) return { v: 1, guest: true };
+    if (typeof s.id !== 'string' || typeof s.key !== 'string' || typeof s.mac !== 'string') return null;
+    const rec = acctFind(s.id);
+    if (!rec || rec.fp !== s.fp) return null;      // 账户被删 / 改过口令 → 旧会话立刻失效
+    return { v: 1, guest: false, id: s.id, user: rec.user, fp: s.fp, key: s.key, mac: s.mac };
+  } catch (e) { return null; }
+}
+function sessKeys(sn) { return { data: b64dec(sn.key), mac: b64dec(sn.mac) }; }
+function sessClear() { _ssDel(); }
+// 有账户但当前没有有效会话 = 锁着(游戏页与主页据此拦截)
+function acctLocked() { return acctList().length > 0 && !sessGet(); }
+// 当前身份: account(已解锁某账户) / guest(游客) / legacy(本机还没建过账户)
+function acctMode() {
+  const sn = sessGet();
+  if (sn && !sn.guest) return 'account';
+  if (sn && sn.guest) return 'guest';
+  return acctList().length ? 'locked' : 'legacy';
+}
+
+/* ---------- 落盘封装(信封) ---------- */
+function sealValue(plain, keys) {
+  const nonce = randBytes(16);
+  const ct = streamXor(utf8Enc(String(plain)), keys.data, nonce);
+  return {
+    app: 'breach-door-cqb', enc: ACCT_STORE_ENC, v: 1, at: new Date().toISOString(),
+    nonce: b64enc(nonce), tag: b64enc(hmacSha256(keys.mac, ct).slice(0, 16)), data: b64enc(ct),
+  };
+}
+function openValue(env, keys) {
+  try {
+    if (!env || typeof env !== 'object' || env.enc !== ACCT_STORE_ENC) return { ok: false, err: 'format' };
+    const nonce = b64dec(env.nonce), ct = b64dec(env.data), tag = b64dec(env.tag);
+    if (!nonce || !nonce.length || !ct || !tag || !tag.length) return { ok: false, err: 'format' };
+    if (!bytesEq(hmacSha256(keys.mac, ct).slice(0, 16), tag)) return { ok: false, err: 'auth' };
+    return { ok: true, data: utf8Dec(streamXor(ct, keys.data, nonce)) };
+  } catch (e) { return { ok: false, err: 'format' }; }
+}
+function vaultBase(k) { const m = /^breach_game_(.+)$/.exec(String(k)); return m ? m[1] : null; }
+function vaultGuarded(k) { const b = vaultBase(k); return !!(b && ACCT_BASES[b]); }
+function vaultKeyName(k) {
+  const sn = sessGet();
+  if (!sn || sn.guest || !vaultGuarded(k)) return String(k);
+  return 'breach_game_acct_' + sn.id + '_' + vaultBase(k);
+}
+// 读: 账户命名空间里是信封就解开; 明文 JSON 原样返回(游客/旧档/共享键)。
+// 有信封但当前没钥匙 → 一律当作"读不到", 绝不把密文当数据交给页面。
+function vaultRead(k) {
+  const name = vaultKeyName(k);
+  let raw = _lsGet(name);
+  // 兜底只在本机"还没开始用账户"时生效(迁移期/旧档): 一旦本机有账户, 就不能再回退读明文键 ——
+  // 否则先用游客模式打一局再登录账户, 会把游客进度读进账户; 而 resetAll 只删账户键,
+  // 重置后旧明文还在, 数据会"复活"。
+  if (raw === null && name !== String(k) && acctList().length === 0) raw = _lsGet(k);
+  if (raw === null) return null;
+  if (raw.charAt(0) !== '{') return raw;
+  let env = null;
+  try { env = JSON.parse(raw); } catch (e) { return raw; }
+  if (!env || typeof env !== 'object' || env.enc !== ACCT_STORE_ENC) return raw;
+  const sn = sessGet();
+  if (!sn || sn.guest) return null;
+  const r = openValue(env, sessKeys(sn));
+  return r.ok ? r.data : null;
+}
+// 写: 账户模式下必须已解锁才允许写(锁着的时候写 = 把密文写坏); 游客/未建账户走旧明文键
+function vaultWrite(k, v) {
+  if (vaultGuarded(k)) {
+    const sn = sessGet();
+    if (!sn) return acctList().length ? false : _lsSet(k, String(v));   // 有账户但没解锁 → 拒绝
+    if (sn.guest) return _lsSet(k, String(v));                          // 游客: 明文
+    return _lsSet(vaultKeyName(k), JSON.stringify(sealValue(String(v), sessKeys(sn))));
+  }
+  return _lsSet(k, String(v));
+}
+function vaultRemove(k) { return _lsDel(vaultKeyName(k)); }
+
+/* ---------- 迁移 / 清空 ---------- */
+// 建账户时把旧的明文进度搬进账户命名空间(加密), 搬一条删一条; 返回搬了几条
+function acctMigrateLegacy(id, keys) {
+  let n = 0;
+  for (const base in ACCT_BASES) {
+    const k = 'breach_game_' + base;
+    const raw = _lsGet(k);
+    if (raw === null || !raw.length) continue;
+    if (raw.charAt(0) === '{') {
+      try { const o = JSON.parse(raw); if (o && o.enc === ACCT_STORE_ENC) { _lsDel(k); continue; } } catch (e) { }
+    }
+    if (_lsSet('breach_game_acct_' + id + '_' + base, JSON.stringify(sealValue(raw, keys)))) { _lsDel(k); n++; }
+  }
+  return n;
+}
+function acctWipeLegacy() {
+  let n = 0;
+  for (const base in ACCT_BASES) { const k = 'breach_game_' + base; if (_lsGet(k) !== null && _lsDel(k)) n++; }
+  return n;
+}
+function acctPurgeKeys(id) {
+  const pre = 'breach_game_acct_' + id + '_';
+  for (const base in ACCT_BASES) _lsDel(pre + base);
+  try {   // 有能力枚举 localStorage 时再兜一遍(手改出来的野键)
+    if (_lsHas() && typeof localStorage.key === 'function') {
+      for (let i = localStorage.length - 1; i >= 0; i--) {
+        const k = localStorage.key(i);
+        if (k && k.indexOf(pre) === 0) localStorage.removeItem(k);
+      }
+    }
+  } catch (e) { }
+}
+
+/* ---------- 账户操作 ---------- */
+function acctCreate(user, pw) {
+  user = String(user === undefined || user === null ? '' : user).trim();
+  const p = acctNormPw(pw);
+  if (!user) return { ok: false, err: 'user' };
+  if (user.length > 24) return { ok: false, err: 'user-long' };
+  if (p.length < 4) return { ok: false, err: 'pw-short' };
+  if (p.length > 128) return { ok: false, err: 'pw-long' };
+  const list = acctList();
+  if (list.length >= ACCT_MAX) return { ok: false, err: 'too-many' };
+  for (let i = 0; i < list.length; i++) if (list[i].user === user) return { ok: false, err: 'dup' };
+  const salt = randBytes(16), keys = acctKeys(p, salt, ACCT_ITER), ver = acctVerifier(keys);
+  const rec = {
+    id: acctNewId(), user: user, salt: b64enc(salt), iter: ACCT_ITER, ver: ver,
+    fp: acctFingerprint(user, b64enc(salt), ver), at: new Date().toISOString(),
+  };
+  // 先登记账户清单, 再迁移旧明文。反过来(先迁移 = 搬一条删一条明文)一旦清单写失败,
+  // 账户 id 与 salt 都没落盘 —— 密文成孤儿、明文已删, 旧进度永久不可恢复;
+  // 先落盘清单的话, 迁移失败最多是"账户建好了但旧进度没搬完", 明文还在, 再点一次即可。
+  list.push(rec);
+  if (!acctWriteList(list, rec.id)) return { ok: false, err: 'write' };
+  const migrated = acctMigrateLegacy(rec.id, keys);
+  _ssSet(JSON.stringify({ v: 1, guest: false, id: rec.id, fp: rec.fp, key: b64enc(keys.data), mac: b64enc(keys.mac) }));
+  return { ok: true, id: rec.id, user: rec.user, migrated: migrated };
+}
+function acctLogin(id, pw) {
+  const rec = acctFind(id);
+  if (!rec) return { ok: false, err: 'missing' };
+  const keys = acctKeys(pw, b64dec(rec.salt), acctIterOf(rec));
+  if (acctVerifier(keys) !== rec.ver) return { ok: false, err: 'auth' };
+  _ssSet(JSON.stringify({ v: 1, guest: false, id: rec.id, fp: rec.fp, key: b64enc(keys.data), mac: b64enc(keys.mac) }));
+  acctWriteList(acctList(), rec.id);
+  return { ok: true, id: rec.id, user: rec.user };
+}
+// 游客: 每次进入都清空游客进度 —— 这就是"游客模式每次重置"
+function acctGuest() {
+  const wiped = acctWipeLegacy();
+  _ssSet(JSON.stringify({ v: 1, guest: true }));
+  return { ok: true, wiped: wiped };
+}
+function acctLogout() { sessClear(); return { ok: true }; }
+function acctChangePw(id, oldPw, newPw) {
+  const rec = acctFind(id);
+  if (!rec) return { ok: false, err: 'missing' };
+  if (acctNormPw(newPw).length < 4) return { ok: false, err: 'pw-short' };
+  const oldKeys = acctKeys(oldPw, b64dec(rec.salt), acctIterOf(rec));
+  if (acctVerifier(oldKeys) !== rec.ver) return { ok: false, err: 'auth' };
+  // 先把该账户所有信封解出来(有一条解不开就整体不动, 免得换到一半丢档), 再用新钥匙重封
+  const items = [];
+  for (const base in ACCT_BASES) {
+    const name = 'breach_game_acct_' + id + '_' + base;
+    const raw = _lsGet(name);
+    if (raw === null) continue;
+    let plain = null;
+    try { const r = openValue(JSON.parse(raw), oldKeys); if (r.ok) plain = r.data; } catch (e) { }
+    if (plain === null) return { ok: false, err: 'broken' };
+    items.push({ name: name, plain: plain });
+  }
+  const salt = randBytes(16), keys = acctKeys(newPw, salt, ACCT_ITER);
+  // 两段式换钥: 先把所有档重新封好, 再逐条落盘; 中途失败就用旧信封把已写的几条还原 ——
+  // 旧实现边封边写, 中途 return 会留下"一半新钥一半旧钥", 而清单里仍是旧 ver,
+  // 结果新旧口令都打不开这个账户的存档。
+  const sealed = [];
+  for (let i = 0; i < items.length; i++) sealed.push(JSON.stringify(sealValue(items[i].plain, keys)));
+  const wrote = [];
+  for (let i = 0; i < items.length; i++) {
+    const oldRaw = _lsGet(items[i].name);
+    if (!_lsSet(items[i].name, sealed[i])) {
+      for (let k = 0; k < wrote.length; k++) if (wrote[k].raw !== null) _lsSet(wrote[k].name, wrote[k].raw);
+      return { ok: false, err: 'write' };
+    }
+    wrote.push({ name: items[i].name, raw: oldRaw });
+  }
+  rec.salt = b64enc(salt); rec.iter = ACCT_ITER; rec.ver = acctVerifier(keys);
+  rec.fp = acctFingerprint(rec.user, rec.salt, rec.ver);
+  const list = acctList().map(r => (r.id === id ? rec : r));
+  acctWriteList(list, id);
+  _ssSet(JSON.stringify({ v: 1, guest: false, id: id, fp: rec.fp, key: b64enc(keys.data), mac: b64enc(keys.mac) }));
+  return { ok: true, moved: items.length };
+}
+function acctDelete(id, pw) {
+  const rec = acctFind(id);
+  if (!rec) return { ok: false, err: 'missing' };
+  const keys = acctKeys(pw, b64dec(rec.salt), acctIterOf(rec));
+  if (acctVerifier(keys) !== rec.ver) return { ok: false, err: 'auth' };
+  acctPurgeKeys(id);
+  const list = acctList().filter(r => r.id !== id);
+  acctWriteList(list, list.length ? list[0].id : '');
+  const sn = sessGet();
+  if (sn && !sn.guest && sn.id === id) sessClear();
+  return { ok: true, left: list.length };
+}
+// 界面用的一览(不泄露任何密钥材料)
+function acctStatus() {
+  const sn = sessGet();
+  return {
+    mode: acctMode(),
+    locked: acctLocked(),
+    session: sn ? (sn.guest ? { guest: true } : { guest: false, id: sn.id, user: sn.user }) : null,
+    accounts: acctList().map(r => ({ id: r.id, user: r.user, at: r.at })),
+    last: acctLastId(),
+  };
+}
+// <<< ACCT-CORE-END
+// >>> BOARD-BEGIN (v3.2 本地排行榜: 四个页面逐字节一致, 由 tests/board_test.js 守护)
+/* ============================================================================
+   v3.2 · 本地排行榜(四个页面各一份, 逐字节一致, 由 tests/board_test.js 守护)
+   ----------------------------------------------------------------------------
+   为什么是明文、为什么全机共用: 排行榜要能被**任何身份**看到与写入 —— 包括游客、
+   包括账户未解锁的状态; 它只记录"谁 / 什么难度 / 哪张图 / 多少星或多少波 / 多久或多
+   少分 / 什么时候", 不含任何存档内容。因此它**故意不进账户加密命名空间**:
+   键 breach_game_board 一直是明文, 也不随档案槽位切换。
+   名次怎么比(榜单分 = 表现分 × 难度系数; 难度系数: 简单 0.85 / 标准 1 / 困难 1.2):
+     · 战役 campaign: 表现分 = 星级×1000 + 击杀×10 + 用时奖励(600s 满分线, 每快 1s 得 1 分)
+                      —— 折算出来的先后与旧口径一致: 星级高 → 用时短 → 击杀多(打得好、快、狠)
+     · 长街 street  : 表现分 = 波数×1000 + 得分(每 10 分折 1 分, 最多折 1000 = 一波)
+                      —— 折算出来的先后与旧口径一致: 波数多 → 得分高(撑得久、拿得多)
+     榜单分相同才回落到上面这些分项逐项比; 完全同级时先到者在前, 顺序永远可复现。
+     难度因此真的是成绩的一部分: 高难度的同档表现压过低难度, 甚至能压过低难度的高一档 ——
+     这正是"难度系数"要的效果。系数只影响名次, 结算军功点口径完全不变。
+   落盘上限 BOARD_CAP(50) 条/榜: 长期游玩不会把 localStorage 撑爆; 展示取前 BOARD_MAX(10) 条。
+   ============================================================================ */
+const BOARD_KEY = 'breach_game_board';
+const BOARD_MAX = 10;      // 榜上展示条数
+const BOARD_CAP = 50;      // 落盘保留条数(超出按名次裁尾)
+const BOARD_SCOPES = ['campaign', 'street'];
+const BOARD_TITLE = { campaign: '战役 · 红蓝对抗', street: '长街尸潮 · 波次防守' };
+// 难度系数: 难度是成绩的一部分 —— 同表现下 困难 > 标准 > 简单。调平衡只改这三个数,
+// 老成绩不写死系数(读榜时按当前系数重算), 所以改完立刻按新系数重排, 不用迁移存档。
+const BOARD_DIFF_W = { easy: 0.85, norm: 1, hard: 1.2 };
+function boardCoef(d) { return BOARD_DIFF_W[d] === undefined ? BOARD_DIFF_W.norm : BOARD_DIFF_W[d]; }
+function boardNum(v) { const n = Number(v); return isFinite(n) ? n : 0; }
+function boardInt(v) { return Math.max(0, Math.round(boardNum(v))); }
+function boardClamp(v, a, b) { const n = boardNum(v); return n < a ? a : (n > b ? b : n); }
+// 榜单分(排序主键) = 表现分 × 难度系数。两个 scope 的表现分都刻意让"主项"远大于"副项",
+// 所以加权后仍保持旧口径的优先级, 只是多出一档"难度":
+//   战役: 星级×1000 + 击杀×10 + 用时奖励(600s 满分线, 每快 1s 得 1 分, 封顶 600)
+//   长街: 波数×1000 + 得分(每 10 分折 1 分, 最多折 1000 = 一波)
+function boardScore(scope, e) {
+  const w = boardCoef(e.diff);
+  if (scope === 'campaign') {
+    const timeBonus = Math.max(0, 600 - Math.min(e.time, 600));
+    return Math.round((e.stars * 1000 + e.kills * 10 + timeBonus) * w);
+  }
+  return Math.round((e.waves * 1000 + Math.min(1000, e.score / 10)) * w);
+}
+// 条目上的榜单分: 已算过就直接用(榜内条目), 没算过就当场算(新增条目/外部调用)
+function boardPts(scope, e) { return (typeof e.pts === 'number') ? e.pts : boardScore(scope, e); }
+// 榜上的"谁": 账户解锁时用账户名, 其余(游客/未解锁/无账户)一律记作"游客"
+function boardWho() {
+  try {
+    const sn = sessGet();
+    return (sn && !sn.guest && sn.user) ? String(sn.user).slice(0, 16) : '游客';
+  } catch (e) { return '游客'; }
+}
+function boardRaw() {
+  try {
+    const o = JSON.parse(_lsGet(BOARD_KEY) || '{}');
+    return (o && typeof o === 'object') ? o : {};
+  } catch (e) { return {}; }
+}
+// 逐条清洗: 手改/半截写入的脏数据既不许把榜单读崩, 也不许被原样再写回去
+function boardSanitize(scope, e) {
+  if (!e || typeof e !== 'object') return null;
+  const out = {
+    who: (String(e.who === undefined || e.who === null ? '' : e.who).trim() || '游客').slice(0, 16),
+    diff: (e.diff === 'easy' || e.diff === 'hard') ? e.diff : 'norm',
+    at: (typeof e.at === 'string' && e.at.length >= 10) ? e.at.slice(0, 24) : new Date().toISOString(),
+  };
+  if (scope === 'campaign') {
+    out.stars = boardClamp(e.stars, 1, 3) | 0;
+    out.time = boardInt(e.time);
+    out.kills = boardInt(e.kills);
+    const m = String(e.map === undefined || e.map === null ? '' : e.map);
+    out.map = /^[a-z][a-z0-9_]{2,15}$/.test(m) ? m : 'house';
+    out.mapName = (String(e.mapName === undefined || e.mapName === null ? '' : e.mapName).trim() || out.map).slice(0, 8);
+  } else {
+    out.waves = boardInt(e.waves);
+    out.score = boardInt(e.score);
+    out.boss = boardInt(e.boss);
+    out.evac = !!e.evac;
+  }
+  return out;
+}
+function boardCmp(scope, a, b) {
+  // ① 榜单分(表现分 × 难度系数): 难度写进名次 —— 困难 3 星压在标准/简单 3 星前面
+  const pa = boardPts(scope, a), pb = boardPts(scope, b);
+  if (pb !== pa) return pb - pa;
+  // ② 同分兜底: 仍按旧口径逐项比, 保证同一台机器上的顺序可复现
+  if (scope === 'campaign') {
+    if (b.stars !== a.stars) return b.stars - a.stars;
+    if (a.time !== b.time) return a.time - b.time;
+    if (b.kills !== a.kills) return b.kills - a.kills;
+  } else {
+    if (b.waves !== a.waves) return b.waves - a.waves;
+    if (b.score !== a.score) return b.score - a.score;
+  }
+  return String(a.at) < String(b.at) ? -1 : (String(a.at) > String(b.at) ? 1 : 0);   // 完全同级: 先到者在前
+}
+function boardList(scope) {
+  const o = boardRaw();
+  const arr = (o && o[scope] instanceof Array) ? o[scope] : [];
+  const out = [];
+  for (const e of arr) {
+    const s = boardSanitize(scope, e);
+    if (!s) continue;
+    s.coef = boardCoef(s.diff);   // 派生字段(只给界面看): 不落盘, boardAdd 写回前会重新清洗
+    s.pts = boardScore(scope, s);
+    out.push(s);
+  }
+  out.sort((a, b) => boardCmp(scope, a, b));
+  return out.slice(0, BOARD_CAP);
+}
+// 记一条成绩; 返回名次(1 起, 只在前 BOARD_MAX 名内返回, 否则 0)
+function boardAdd(scope, entry) {
+  if (BOARD_SCOPES.indexOf(scope) < 0) return 0;
+  const s = boardSanitize(scope, entry);
+  if (!s) return 0;
+  const list = boardList(scope);
+  list.push(s);
+  list.sort((a, b) => boardCmp(scope, a, b));
+  const kept = list.slice(0, BOARD_CAP);
+  const rank = kept.indexOf(s) + 1;
+  const o = boardRaw();
+  o.v = 1; o.app = 'breach-door-cqb';
+  o[scope] = kept.map((e) => boardSanitize(scope, e));   // 只落盘可持久化字段: coef/pts 是派生值, 读榜时重算
+  if (!_lsSet(BOARD_KEY, JSON.stringify(o))) return 0;
+  return rank > BOARD_MAX ? 0 : rank;
+}
+function boardTop(scope, n) { return boardList(scope).slice(0, n || BOARD_MAX); }
+function boardCount(scope) { return boardList(scope).length; }
+function boardClear(scope) {
+  const o = boardRaw();
+  if (scope && BOARD_SCOPES.indexOf(scope) >= 0) o[scope] = [];
+  else for (const s of BOARD_SCOPES) o[s] = [];
+  o.v = 1; o.app = 'breach-door-cqb';
+  return _lsSet(BOARD_KEY, JSON.stringify(o));
+}
+function boardFmtTime(sec) {
+  const t = boardInt(sec), m = Math.floor(t / 60), s = t % 60;
+  return m + ':' + (s < 10 ? '0' : '') + s;
+}
+function boardWhen(at) {
+  try {
+    const d = new Date(String(at));
+    if (!d || !isFinite(d.getTime())) return '';
+    const pad = (n) => (n < 10 ? '0' : '') + n;
+    return pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+  } catch (e) { return ''; }
+}
+function boardDiffName(d) { return d === 'easy' ? '简单' : (d === 'hard' ? '困难' : '标准'); }
+// 难度系数的显示形态: 标准不写系数(×1 只是噪音), 简单/困难写成 "简单 ×0.85" / "困难 ×1.2"
+function boardDiffTag(d) {
+  const w = boardCoef(d);
+  return Math.abs(w - 1) < 1e-9 ? boardDiffName(d) : (boardDiffName(d) + ' ×' + w);
+}
+function boardRankIcon(i) { return i === 0 ? 'fa-trophy' : (i === 1 ? 'fa-medal' : (i === 2 ? 'fa-award' : 'fa-hashtag')); }
+// 星级一律用 FontAwesome 的星(实心=拿到, 空心=没拿到), 不再用 ★/☆ 字符
+// 星级/图钉统一走 FontAwesome 图标(实心=拿到, 空心=没拿到): 不再用 ★/☆/●/○ 这类字符
+function faStars(n, cls) {
+  let h = '';
+  for (let i = 0; i < 3; i++) h += '<i class="' + (i < n ? 'fas' : 'far') + ' fa-star' + (cls ? ' ' + cls : '') + (i < n ? '' : ' dim') + '"></i>';
+  return h;
+}
+function boardStars(n) { return faStars(n, 'bdStar'); }
+function boardEsc(s) {
+  return String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+}
+// 榜单界面(主页与整备大厅共用同一份渲染, 保证两页长得一模一样)
+function boardRenderHTML(scope, n) {
+  const list = boardTop(scope, n || BOARD_MAX);
+  let h = '<div class="bdHead"><span class="tick"></span>' + (BOARD_TITLE[scope] || scope) +
+    '<span class="bdCount">' + list.length + ' / ' + BOARD_MAX + '</span></div>';
+  if (!list.length) return h + '<p class="bdEmpty">还没有成绩，打完一局就会出现在这里。</p>';
+  h += '<ol class="bdList">';
+  for (let i = 0; i < list.length; i++) {
+    const e = list[i];
+    // 榜分 = 表现分 × 难度系数: 摊在行尾, 名次为什么这么排一眼就能算
+    const pts = '<span class="bdScore" title="榜分 = 表现分 × 难度系数">榜分 ' + boardInt(e.pts) + '</span>';
+    const main = (scope === 'campaign')
+      ? ('<span class="bdStars">' + boardStars(e.stars) + '</span><b>' + boardFmtTime(e.time) + '</b><span class="bdKill"><i class="fas fa-skull"></i>' + e.kills + '</span>' + pts)
+      : ('<b>第 ' + e.waves + ' 波</b><span class="bdScore">' + e.score + ' 分</span>' + (e.evac ? '<span class="bdEvac"><i class="fas fa-truck-fast"></i>撤离</span>' : '') + (e.boss ? '<span class="bdBoss"><i class="fas fa-crown"></i>' + e.boss + '</span>' : '') + pts);
+    const sub = (scope === 'campaign' ? boardEsc(e.mapName) : '长街') + ' · ' + boardDiffTag(e.diff);
+    h += '<li><i class="fas ' + boardRankIcon(i) + ' bdRank"></i>' +
+      '<span class="bdWho">' + boardEsc(e.who) + '</span>' +
+      '<span class="bdMain">' + main + '</span>' +
+      '<span class="bdSub">' + sub + ' · ' + boardWhen(e.at) + '</span></li>';
+  }
+  return h + '</ol>';
+}
+// <<< BOARD-END
+
+// >>> ACCT-UI-BEGIN (v3.2 账户界面: 主页/整备大厅逐字节一致)
+/* ===== v3.2 · 账户界面(主页 / 整备大厅各一份, 逐字节一致, 由 tests/account_test.js 守护) =====
+   模块自建模态框, 复用页面已有的 .overlay/.card/.sheet/.btn 类与颜色令牌:
+     · gate 模式(页面被锁): 没有关闭按钮 —— 必须选账户登录 / 进游客模式 / 新建账户
+     · manage 模式(已进入后点工具条「账户」按钮): 显示当前身份, 可切换账户 / 退出登录 / 改口令 / 删除账户
+   为什么全部由本模块创建而不写静态标记: 只有两个页面需要它, 而两者必须完全一致 —— 静态标记最容易漂移。 */
+let acctUI = { open: false, gate: false, view: 'login', sel: '', msg: '', kind: '' };
+const acctEls = {};
+function acctNew(tag, cls, parent, text) {
+  const el = document.createElement(tag);
+  if (cls) el.className = cls;
+  if (text !== undefined && text !== null) el.textContent = text;
+  if (parent && parent.appendChild) parent.appendChild(el);
+  return el;
+}
+function acctField(parent, id, label, type) {
+  const row = acctNew('div', 'acctField', parent);
+  acctNew('span', null, row, label);
+  const inp = acctNew('input', null, row);
+  inp.id = id; inp.type = type || 'text';
+  if (type === 'password') inp.autocomplete = 'off';
+  return inp;
+}
+function acctBtn(parent, id, cls, text, icon) {
+  const b = acctNew('button', 'btn ' + (cls || 'btn-ghost btn-sm'), parent);
+  b.id = id;
+  b.innerHTML = icon ? '<i class="fas ' + icon + '"></i>' + text : text;
+  return b;
+}
+function acctSetMsg(msg, kind) { acctUI.msg = msg || ''; acctUI.kind = kind || ''; acctPaintMsg(); }
+function acctPaintMsg() {
+  const m = acctEls.msg;
+  if (!m) return;
+  m.className = 'acctMsg' + (acctUI.kind ? ' ' + acctUI.kind : '');
+  m.textContent = acctUI.msg || '';
+}
+function acctUIBuild() {
+  if (acctEls.overlay) return;
+  const ov = acctNew('div', 'acctOverlay hidden', document.body);
+  ov.id = 'acctOverlay';
+  ov.setAttribute && ov.setAttribute('role', 'dialog');
+  ov.setAttribute && ov.setAttribute('aria-modal', 'true');
+  const card = acctNew('div', 'acctCard', ov);
+  const tb = acctNew('div', 'acctTb', card);
+  const tbs = acctNew('span', 'tb', tb);
+  const add = (k, v) => { const i = acctNew('span', 'tb-i', tbs); acctNew('span', 'tb-k', i, k); acctNew('span', 'tb-v', i, v); };
+  add('DWG. 图号', 'AC-01');
+  acctEls.state = acctNew('span', 'tb-v', (() => { const i = acctNew('span', 'tb-i', tbs); acctNew('span', 'tb-k', i, 'STATE 状态'); return i; })(), 'LOCKED');
+  add('SHEET 张次', '本机');
+  const h1 = acctNew('h1', null, card);
+  h1.innerHTML = '<i class="fas fa-user-shield"></i>本机账户';
+  acctEls.stat = acctNew('p', 'acctStat', card); acctEls.stat.id = 'acctStat';
+  acctEls.msg = acctNew('p', 'acctMsg', card); acctEls.msg.id = 'acctMsg';
+  acctEls.body = acctNew('div', null, card); acctEls.body.id = 'acctBody';
+  acctNew('p', 'acctHint', card,
+    '账户数据只存在这台机器（localStorage），且全程加密：口令不落盘，只用来派生密钥。' +
+    '游客模式不设口令，进度每次从零开始。').id = 'acctHint';
+  acctEls.overlay = ov;
+}
+function acctOpenUI(gate) {
+  acctUIBuild();
+  acctUI.open = true;
+  acctUI.gate = !!gate;
+  acctUI.view = 'login';
+  acctUI.sel = '';
+  acctUI.msg = '';
+  const st = acctStatus();
+  acctUI.sel = (st.session && !st.session.guest && st.session.id) || st.last || (st.accounts[0] ? st.accounts[0].id : '');
+  acctRenderUI();
+  if (acctEls.overlay.classList) acctEls.overlay.classList.remove('hidden');
+}
+function acctCloseUI() {
+  if (acctUI.gate && acctLocked()) return;      // gate 模式不许关(必须选一种身份)
+  acctUI.open = false;
+  if (acctEls.overlay && acctEls.overlay.classList) acctEls.overlay.classList.add('hidden');
+}
+// 身份确定之后: 关掉界面并让页面按新身份重画(页面通过 __acctOnSession 挂钩)
+function acctFinish(msg) {
+  acctUI.gate = false;
+  acctCloseUI();
+  if (msg) { try { if (typeof __acctNotify === 'function') __acctNotify(msg); } catch (e) { } }
+  try { if (typeof __acctOnSession === 'function') __acctOnSession(); } catch (e) { }
+}
+function acctGo(view) { acctUI.view = view; acctUI.msg = ''; acctRenderUI(); }
+function acctRenderUI() {
+  acctUIBuild();
+  const st = acctStatus();
+  const body = acctEls.body;
+  if (acctEls.state) acctEls.state.textContent = st.locked ? 'LOCKED' : (st.mode === 'guest' ? 'GUEST' : (st.mode === 'account' ? 'UNLOCKED' : 'OPEN'));
+  if (acctEls.stat) {
+    acctEls.stat.innerHTML = '<span class="tick' + (st.locked ? ' danger' : '') + '"></span>' +
+      (st.mode === 'account' ? ('当前账户 <b>' + boardEsc(st.session.user) + '</b> 已解锁')
+        : st.mode === 'guest' ? '当前是 <b>游客模式</b>（进度不保留）'
+          : st.locked ? '本机已启用账户保护 —— 需要口令才能进入'
+            : '本机还没有账户：与以前一样直接玩（建账户后进度加密保存）');
+  }
+  if (body) { body.innerHTML = ''; while (body.firstChild && body.removeChild) body.removeChild(body.firstChild); }
+  acctPaintMsg();
+  const accts = st.accounts;
+  if (acctUI.view === 'new') return acctViewNew(body, st);
+  if (acctUI.view === 'chpw') return acctViewChpw(body, st);
+  if (acctUI.view === 'del') return acctViewDel(body, st);
+  acctViewLogin(body, st, accts);
+}
+function acctViewLogin(body, st, accts) {
+  if (accts.length) {
+    const list = acctNew('div', 'acctList', body);
+    for (const a of accts) {
+      const row = acctNew('button', 'acctRow' + (a.id === acctUI.sel ? ' on' : ''), list);
+      row.id = 'acctUser_' + a.id;
+      // 账户名来自本机明文清单(创建时只限长度不限字符) → 拼进 innerHTML 前必须转义
+      row.innerHTML = '<i class="fas fa-user"></i>' + boardEsc(a.user) + '<small>' + (a.id === st.last ? '上次使用' : '') + '</small>';
+      row.onclick = () => { acctUI.sel = a.id; acctUI.msg = ''; acctRenderUI(); };
+    }
+    acctField(body, 'acctPw', '口令', 'password');
+  } else {
+    acctNew('p', 'acctHint', body, '本机还没有账户 —— 建一个后，进度与设置以密文保存，进游戏前要输口令。');
+  }
+  const act = acctNew('div', 'acctActions', body);
+  if (accts.length) {
+    acctBtn(act, 'acctGo', 'btn-primary btn-sm', '进入', 'fa-right-to-bracket').onclick = () => {
+      const pwEl = document.getElementById('acctPw');
+      const r = acctLogin(acctUI.sel, pwEl ? pwEl.value : '');
+      if (r.ok) acctFinish('已进入账户 ' + boardEsc(r.user));
+      else acctSetMsg(r.err === 'auth' ? '口令不对，再试一次' : (r.err === 'missing' ? '这个账户已经不存在了' : '进入失败（' + r.err + '）'), 'bad');
+    };
+  }
+  acctBtn(act, 'acctNew', 'btn-ghost btn-sm', accts.length ? '新建账户' : '创建账户', 'fa-user-plus').onclick = () => acctGo('new');
+  acctBtn(act, 'acctGuest', 'btn-ghost btn-sm', '游客模式', 'fa-user-secret').onclick = () => {
+    if (typeof confirm === 'function' && !confirm('进入游客模式？\n\n· 不需要口令，但进度不保留：每次进入游客模式都会从零开始\n· 不会影响这台机器上已有的账户存档')) return;
+    acctGuest();
+    acctFinish('已进入游客模式（进度不保留）');
+  };
+  if (st.mode === 'account') {
+    acctBtn(act, 'acctChpw', 'btn-ghost btn-sm', '修改口令', 'fa-key').onclick = () => acctGo('chpw');
+    acctBtn(act, 'acctSwitch', 'btn-ghost btn-sm', '切换账户', 'fa-arrows-rotate').onclick = () => { acctLogout(); acctUI.gate = true; acctUI.view = 'login'; acctUI.msg = '已退出登录，请重新选择账户'; acctUI.kind = ''; acctRenderUI(); };
+    acctBtn(act, 'acctDel', 'btn-danger btn-sm', '删除账户', 'fa-trash-can').onclick = () => acctGo('del');
+  }
+  if (!acctUI.gate) acctBtn(act, 'acctClose', 'btn-ghost btn-sm', '关闭', 'fa-xmark').onclick = acctCloseUI;
+}
+function acctViewNew(body, st) {
+  acctField(body, 'acctNewUser', '用户名', 'text');
+  acctField(body, 'acctNewPw', '口令', 'password');
+  acctField(body, 'acctNewPw2', '确认口令', 'password');
+  acctNew('p', 'acctHint', body, '口令至少 4 位，忘了就打不开存档（没有找回）。现有明文进度会在建账户时一并加密搬进来。');
+  const act = acctNew('div', 'acctActions', body);
+  acctBtn(act, 'acctCreate', 'btn-primary btn-sm', '创建并进入', 'fa-user-plus').onclick = () => {
+    const g = id => { const e = document.getElementById(id); return e ? e.value : ''; };
+    if (g('acctNewPw') !== g('acctNewPw2')) { acctSetMsg('两次输入的口令不一致', 'bad'); return; }
+    const r = acctCreate(g('acctNewUser'), g('acctNewPw'));
+    if (r.ok) acctFinish('账户 ' + boardEsc(r.user) + ' 已建立' + (r.migrated ? '（已把 ' + r.migrated + ' 份旧进度加密搬入）' : ''));
+    else acctSetMsg({
+      user: '用户名不能为空', 'user-long': '用户名过长（上限 24 字）', 'pw-short': '口令至少 4 位',
+      'pw-long': '口令过长（上限 128 字）', dup: '已经有同名账户了', 'too-many': '账户数量已达上限（' + 8 + ' 个）',
+      write: '写入失败：浏览器存储不可用或已满',
+    }[r.err] || ('创建失败（' + r.err + '）'), 'bad');
+  };
+  acctBtn(act, 'acctBack', 'btn-ghost btn-sm', '返回', 'fa-arrow-left').onclick = () => acctGo('login');
+  if (st.mode === 'account') acctBtn(act, 'acctClose', 'btn-ghost btn-sm', '关闭', 'fa-xmark').onclick = acctCloseUI;
+}
+function acctViewChpw(body, st) {
+  acctNew('p', 'acctHint', body, '改口令会用它重新加密该账户的全部存档（数据不丢），旧口令立即失效。');
+  acctField(body, 'acctChOld', '原口令', 'password');
+  acctField(body, 'acctChNew', '新口令', 'password');
+  acctField(body, 'acctChNew2', '确认新口令', 'password');
+  const act = acctNew('div', 'acctActions', body);
+  acctBtn(act, 'acctChGo', 'btn-primary btn-sm', '确认修改', 'fa-key').onclick = () => {
+    const g = id => { const e = document.getElementById(id); return e ? e.value : ''; };
+    if (g('acctChNew') !== g('acctChNew2')) { acctSetMsg('两次输入的新口令不一致', 'bad'); return; }
+    const r = acctChangePw(acctUI.sel, g('acctChOld'), g('acctChNew'));
+    if (r.ok) acctFinish('口令已修改（重新加密 ' + r.moved + ' 份数据）');
+    else acctSetMsg(r.err === 'auth' ? '原口令不对' : (r.err === 'pw-short' ? '新口令至少 4 位' : '修改失败（' + r.err + '）'), 'bad');
+  };
+  acctBtn(act, 'acctBack', 'btn-ghost btn-sm', '返回', 'fa-arrow-left').onclick = () => acctGo('login');
+}
+function acctViewDel(body, st) {
+  const rec = st.accounts.filter(a => a.id === acctUI.sel)[0];
+  acctNew('p', 'acctHint', body, '删除账户会连同加密存档一起清掉，不可恢复' + (rec ? '（' + rec.user + '）' : '') + '。');
+  acctField(body, 'acctDelPw', '账户口令', 'password');
+  const act = acctNew('div', 'acctActions', body);
+  acctBtn(act, 'acctDelGo', 'btn-danger btn-sm', '确认删除', 'fa-trash-can').onclick = () => {
+    const e = document.getElementById('acctDelPw');
+    const r = acctDelete(acctUI.sel, e ? e.value : '');
+    if (r.ok) {
+      const left = acctStatus();
+      acctFinish(r.left ? '账户已删除' : '已删除最后一个账户：回到无账户模式（进度明文保存）');
+      acctUI.sel = left.accounts[0] ? left.accounts[0].id : '';
+      if (r.left) acctOpenUI(true);
+    } else acctSetMsg(r.err === 'auth' ? '口令不对' : '删除失败（' + r.err + '）', 'bad');
+  };
+  acctBtn(act, 'acctBack', 'btn-ghost btn-sm', '返回', 'fa-arrow-left').onclick = () => acctGo('login');
+}
+// <<< ACCT-UI-END
+// ---------- 存档备份/导入 ----------
+// 把玩家全部数据(配置+存档)打包成 JSON 给人, 对方导入后即接续你的进度;
+// 想"重新开始"可点「重置全部进度」。全程本地 Blob/FileReader, 零网络依赖。
+function buildBackup() {
+  const out = { app: 'breach-door-cqb', ver: 1, at: new Date().toISOString(), cfg: null, save: null };
+  try { const s = lsGet(CFG_KEY()); out.cfg = s ? JSON.parse(s) : null; } catch (e) { }
+  try { const s = lsGet(SAVE_KEY()); out.save = s ? JSON.parse(s) : null; } catch (e) { }
+  return out;
+}
+function applyBackup(b) {
+  try {
+    // 修复: 校验 app 标识 —— 非本游戏导出的 JSON 一律拒绝, 不再整体覆盖本地两档
+    if (!b || typeof b !== 'object' || b.app !== 'breach-door-cqb') return false;
+    // P0-4: 导入是唯一的外部数据入口 —— 必须先清洗再落盘(旧实现把原始 JSON 直接写盘,
+    // 脏字段长期驻留: sanitizeAll 只清洗过内存副本), 且落盘失败要如实返回 false。
+    let wrote = false, ok = true;
+    if (b.cfg && typeof b.cfg === 'object') { cfg = b.cfg; sanitizeCfg(); wrote = true; }
+    if (b.save && typeof b.save === 'object') { save = b.save; sanitizeSave(); wrote = true; }
+    if (!wrote) return false;
+    if (b.cfg && typeof b.cfg === 'object') ok = persistCfgOk();
+    if (b.save && typeof b.save === 'object') ok = persistSaveOk() && ok;
+    if (!ok) { loadAllNoThrow(); return false; }
+    return true;
+  } catch (e) { return false; }
+}
+// v3.1: 加密导出的两个口令入口(用浏览器原生 prompt, 零依赖);
+// 环境没有 prompt(自动化测试/受限浏览器)时明确拒绝, 不静默降级成明文导出 —— 那是最糟的失败方式。
+function encExportOn() {
+  const el = document.getElementById('chkEncExport');
+  return !!(el && el.checked);
+}
+function askNewPassword() {
+  if (typeof prompt !== 'function') { toast('环境不支持口令输入（浏览器无 prompt），导出已取消'); return null; }
+  const a = prompt('给这次导出的存档设一个口令（对方导入时要输入同一个）:', '');
+  if (a === null) return null;
+  if (!String(a).length) { toast('导出已取消：口令不能为空'); return null; }
+  if (String(a).length > 128) { toast('导出已取消：口令过长（上限 128 字符）'); return null; }
+  const b = prompt('请再输入一次确认:', '');
+  if (b === null) return null;
+  if (String(a) !== String(b)) { toast('两次口令不一致，导出已取消'); return null; }
+  return String(a);
+}
+function askOpenPassword() {
+  if (typeof prompt !== 'function') { toast('当前环境不支持口令输入（浏览器未提供 prompt）'); return null; }
+  const a = prompt('该存档已加密，请输入口令:', '');
+  return a === null ? null : String(a);
+}
+// 导入落盘: 明文与解密后的数据走同一条通道(校验/清洗/写盘口径完全一致)
+function applyImported(obj) {
+  if (applyBackup(obj)) {
+    loadAll(); renderAll();
+    toast('导入成功：配置与进度已恢复');
+    return true;
+  }
+  toast('导入失败：未识别到存档数据');
+  return false;
+}
+function exportBackup() {
+  const data = buildBackup();
+  if (!data.cfg && !data.save) { toast('还没有存档数据（先玩一局或配置装备）'); return; }
+  const enc = encExportOn();
+  let payload = data, suffix = '';
+  if (enc) {
+    const pw = askNewPassword();
+    if (pw === null) return;                                     // 取消/口令不合法(askNewPassword 已给出原因)
+    payload = encryptBackup(data, pw);
+    if (!payload) { toast('导出失败：口令不可用或环境不支持'); return; }
+    suffix = '_加密';
+  }
+  try {
+    const d = new Date();
+    const pad = n => String(n).padStart(2, '0');
+    const name = '交火存档_' + d.getFullYear() + pad(d.getMonth() + 1) + pad(d.getDate()) + '_' + pad(d.getHours()) + pad(d.getMinutes()) + suffix + '.json';
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = name;
+    document.body.appendChild(a); a.click();
+    setTimeout(() => { try { document.body.removeChild(a); URL.revokeObjectURL(url); } catch (e) { } }, 1500);
+    toast(enc ? '已导出加密存档：对方导入时要同一口令（口令丢了就打不开）' : '已导出 json：发给朋友点「导入存档」即可接续');
+  } catch (e) { toast('导出失败：' + (e && e.message ? e.message : e)); }
+}
+function importBackupFile(file) {
+  try {
+    if (!file) return;
+    // P0-4: 大小上限 —— 无上限的导入会把 5MB 配额一次吃满, 之后所有存档写入都会静默失败(永久丢档)
+    if (typeof file.size === 'number' && file.size > 256 * 1024) { toast('导入失败：存档文件过大（上限 256 KB）'); return; }
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const obj = JSON.parse(reader.result);
+        // v3.1: 加密存档 —— 先要口令, 解出来再走与明文同一条落盘通道; 口令错/被改一律不落盘
+        if (obj && typeof obj === 'object' && obj.enc) {
+          const pw = askOpenPassword();
+          if (pw === null) { toast('已取消导入（加密存档必须输入口令）'); return; }
+          const r = decryptBackup(obj, pw);
+          if (!r.ok) { toast(r.err === 'auth' ? '导入失败：口令错误，或这个文件被修改过' : '导入失败：加密存档格式无法识别'); return; }
+          applyImported(r.data);
+          return;
+        }
+        applyImported(obj);
+      } catch (e) { toast('导入失败：不是有效的 JSON'); }
+    };
+    reader.onerror = () => toast('读取文件失败');
+    reader.readAsText(file);
+  } catch (e) { toast('导入失败'); }
+}
+document.getElementById('btnExport').onclick = exportBackup;
+// v3.1: 加密开关只改导出行为(不写盘、不进存档), 勾选时给按钮加一点视觉反馈
+{
+  const ck = document.getElementById('chkEncExport'), wrap = document.getElementById('encToggleWrap');
+  if (ck && wrap && ck.addEventListener) {
+    ck.addEventListener('change', () => { try { wrap.classList.toggle('on', !!ck.checked); } catch (e) { } });
+  }
+}
+document.getElementById('importFile').addEventListener('change', e => {
+  const f = e.target && e.target.files && e.target.files[0];
+  importBackupFile(f);
+  try { e.target.value = ''; } catch (e2) { }
+});
+document.getElementById('btnImport').onclick = () => {
+  try { document.getElementById('importFile').click(); } catch (e) { }
+};
+document.getElementById('btnGo').onclick = goGame;
+document.getElementById('btnGame').onclick = goGame;
+document.getElementById('btnStreet').onclick = goStreet;
+document.getElementById('btnHome').onclick = () => { persistCfg(); try { location.href = HOME_FILE; } catch (e) { } };
+document.getElementById('btnReset').onclick = () => {
+  try {
+    if (typeof confirm === 'function' && !confirm('确定重置全部进度（军功点/战绩/升级）？')) return;
+  } catch (e) { }
+  try {
+    if (typeof localStorage !== 'undefined') { vaultRemove(CFG_KEY()); vaultRemove(SAVE_KEY()); }
+  } catch (e) { }
+  loadAll(); renderAll();
+  toast('进度已重置');
+};
+
+// ---------- 启动 ----------
+loadAll();
+drawMap();
+renderAll();
+
+// ---------- 回到本页时与磁盘对齐 ----------
+// 打完一局用浏览器「后退」回来(bfcache 恢复不会重跑脚本), 或另一个标签页改了存档: 内存里的 save
+// 已经过期, 而下一次"买升级"会把整份对象写回去 —— 那一局的军功点/战绩被无声抹掉。
+// 只有磁盘内容和上次读/写时不一致才重读重渲染, 平时切标签页不会打断界面。
+function resyncFromDisk() {
+  try {
+    if (lsGet(SAVE_KEY()) === lastSaveRaw) return;
+    loadAll(); renderAll();
+  } catch (e) { }
+}
+window.addEventListener('pageshow', e => { if (e && e.persisted) resyncFromDisk(); });
+document.addEventListener('visibilitychange', () => { if (!document.hidden) resyncFromDisk(); });
+
+// ---------- v3.2: 本地排行榜(机器级明文榜: 战役 + 长街) ----------
+function renderBoard() {
+  const el = document.getElementById('boardPanel');
+  if (!el) return;
+  el.innerHTML = boardRenderHTML('campaign') + boardRenderHTML('street');
+}
+{
+  const b = document.getElementById('btnBoardClear');
+  if (b) b.onclick = () => {
+    try {
+      if (typeof confirm === 'function' && !confirm('清空本地排行榜？\n只清这台机器上的名次记录，不影响存档、升级与战绩。')) return;
+    } catch (e) { }
+    boardClear();
+    renderBoard();
+    toast('本地排行榜已清空');
+  };
+}
+renderBoard();
+
+// ---------- v3.2: 账户(整备大厅也可"进门", 与主页同一套界面) ----------
+function acctSyncBtn() {
+  const b = document.getElementById('btnAcct');
+  if (!b) return;
+  const st = acctStatus();
+  const label = st.mode === 'account' ? st.session.user : (st.mode === 'guest' ? '游客模式' : '账户');
+  b.innerHTML = '<i class="fas fa-user-shield"></i>' + boardEsc(label);
+}
+window.__acctOnSession = function () {
+  try { loadAll(); renderAll(); } catch (e) { }
+  acctSyncBtn();
+};
+window.__acctNotify = function (msg) { try { toast(msg); } catch (e) { } };
+{
+  const b = document.getElementById('btnAcct');
+  if (b) b.onclick = () => acctOpenUI(false);
+  if (acctLocked()) acctOpenUI(true); else acctSyncBtn();
+}
+
+// ---------- 移动端：分页与顶栏读数（桌面完全无感） ----------
+const MOB_HUB_CRUMB = {
+  action: 'LOADOUT / BR-10',
+  build: 'UPGRADE / BR-17',
+  stats: 'RECORD / BR-12',
+  more: 'ARCHIVE / BR-20'
+};
+function mobHubSync() {
+  const rank = document.getElementById('stRank');
+  const pts = document.getElementById('pts');
+  const wpn = document.getElementById('weaponInfo');
+  const r1 = document.getElementById('mobHubRank');
+  const p1 = document.getElementById('mobHubPts');
+  const p2 = document.getElementById('mobHubPts2');
+  const w1 = document.getElementById('mobHubWeapon');
+  if (rank && r1) r1.textContent = String(rank.textContent || '列兵').trim();
+  const n = String((pts && pts.textContent) || '0').replace(/[^\d-]/g, '') || '0';
+  if (p1) p1.textContent = n;
+  if (p2) p2.textContent = n;
+  if (w1) {
+    let name = '突击步枪';
+    if (document.querySelector) {
+      const sel = document.querySelector('.wbtn.sel .wn');
+      if (sel && sel.textContent) name = String(sel.textContent).trim();
+    } else if (wpn) {
+      name = String(wpn.textContent || name).split(/[·\s]/)[0] || name;
+    }
+    w1.textContent = name;
+  }
+}
+function mobHubTab(name) {
+  if (document.querySelectorAll) {
+    const secs = document.querySelectorAll('[data-mob]');
+    for (let i = 0; i < secs.length; i++) {
+      const on = secs[i].getAttribute('data-mob') === name;
+      if (secs[i].classList && secs[i].classList.toggle) secs[i].classList.toggle('mob-on', on);
+    }
+    const tabs = document.querySelectorAll('[data-mob-tab]');
+    for (let i = 0; i < tabs.length; i++) {
+      const on = tabs[i].getAttribute('data-mob-tab') === name;
+      if (tabs[i].classList && tabs[i].classList.toggle) tabs[i].classList.toggle('is-on', on);
+    }
+  }
+  const crumb = document.getElementById('mobHubCrumb');
+  if (crumb && MOB_HUB_CRUMB[name]) crumb.textContent = MOB_HUB_CRUMB[name];
+  try {
+    if (window.scrollTo) window.scrollTo({ top: 0, behavior: 'smooth' });
+  } catch (e) { }
+}
+if (document.querySelectorAll) {
+  const tabs = document.querySelectorAll('[data-mob-tab]');
+  for (let i = 0; i < tabs.length; i++) {
+    tabs[i].addEventListener('click', function () { mobHubTab(this.getAttribute('data-mob-tab')); });
+  }
+}
+{
+  const go = document.getElementById('mobHubGo');
+  if (go) go.onclick = function () {
+    const b = document.getElementById('btnGo');
+    if (b && typeof b.click === 'function') b.click();
+  };
+}
+document.addEventListener('click', function () { setTimeout(mobHubSync, 0); });
+mobHubSync();
+
+// ---------- 测试钩子(对玩家无影响) ----------
+window.__game = {
+  applyBackup, importBackupFile, exportBackup, buildBackup, loadAll, renderAll,
+  sanitizeCfg, sanitizeSave, persistCfgOk, persistSaveOk, persistBoth,
+  get slot() { return activeSlot(); }, setSlot: setActiveSlot, saveKey: SAVE_KEY, cfgKey: CFG_KEY,
+  points: () => (save && save.points) || 0,
+  rank: () => (save && save.rank) || 0,
+  upgradeLv: (id) => (cfg && cfg.upgrades && cfg.upgrades[id]) || 0,
+  lastToast: () => lastToastMsg,
+  get cfg() { return cfg; }, get save() { return save; },
+  // v3.1: 加密导出(可选口令) —— 加解密是纯函数, 测试可直接往返验证
+  encryptBackup, decryptBackup, applyImported, encExportOn,
+  get encFormat() { return ENC_FORMAT; }, get encIter() { return ENC_ITER; },
+  // v3.2: 账户与本地加密存储
+  acctStatus, acctCreate, acctLogin, acctGuest, acctLogout, acctDelete, acctChangePw, acctLocked, acctMode,
+  acctAll: acctList, acctFind, sessGet, sessClear, vaultRead, vaultWrite, vaultRemove, vaultGuard: vaultGuarded,
+  acctOpenUI, acctCloseUI,
+  get acctUI() { return { open: acctUI.open, gate: acctUI.gate, view: acctUI.view, sel: acctUI.sel, msg: acctUI.msg }; },
+  get ACCT() { return { key: ACCT_KEY, sess: ACCT_SESS, enc: ACCT_STORE_ENC, iter: ACCT_ITER, bases: ACCT_BASES, max: ACCT_MAX }; },
+  // v3.2: 本地排行榜(机器级明文榜)
+  boardAdd, boardTop, boardList, boardClear, boardRenderHTML, boardWho, boardStars, faStars, boardCount,
+  boardPanel: (scope) => { const el = document.getElementById('boardPanel'); if (el) el.innerHTML = boardRenderHTML(scope || 'campaign'); },
+  get BOARD() { return { key: BOARD_KEY, max: BOARD_MAX, cap: BOARD_CAP }; },
+};
+</script>
+</body>
+</html>

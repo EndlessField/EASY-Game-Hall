@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="renderer" content="webkit">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="keywords" content="扫雷, minesweeper, 无猜">
+<meta name="description" content="经典扫雷游戏，离线单机。小中盘为无猜模式：整局每一步都可由推理得出，不需要碰运气；大屏幕级别自动开出大片安全区。">
+<title>扫雷游戏（无猜版）- Minesweeper</title>
+<link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+
+<div style="margin-top:0.8rem;">网页扫雷游戏</div>
+
+<div style="margin-top:0.8rem;">
+<a href="javascript:" id="c1" onclick="_123(1)" class="choiced">基础</a>&nbsp;
+<a href="javascript:" id="c2" onclick="_123(2)">中级</a>&nbsp;
+<a href="javascript:" id="c3" onclick="_123(3)">专家</a>&nbsp;
+<a href="javascript:" id="c4" onclick="_123(4)">满屏</a>&nbsp;
+<a href="javascript:" id="c5" onclick="_123(5)">自定义</a>
+</div>
+
+<div id="custom" style="display:none;margin-top:0.8rem">
+宽<input id="hm" type="number" class="i5">
+高<input id="vm" type="number" class="i5">
+雷<input id="mm" type="number" class="i5">
+</div>
+
+<table style="margin:1rem auto;border-radius:6px;background:#cccccc">
+<tbody>
+<tr>
+<td style="padding:9px;">
+
+<table id="p42" class="pad" style="height:34px;width:229px;">
+<tbody>
+<tr>
+<td width="1%"><canvas id="rm" height="23" width="39"></canvas></td>
+<td style="text-align:center;" onmouseup="_47()"><img id="face" src="data:img/gif;base64,R0lGODlhFQAVAJEAAAAAAP//AL29vQAAACH5BAAHAP8ALAAAAAAVABUAAAJAlI+py50AoUMwWCsduBy33XXAAoaiUlZY+nBq8MKUSY9HSbtzft4X/vu1MCLhcBXRoXgyBlD5AWYmgsiUis0yCgA7"></td>
+<td width="1%" style="text-align:right"><canvas id="es" height="23" width="39"></canvas></td>
+</tr>
+</tbody>
+</table>
+
+<canvas id="paf" class="pad" style="margin-top:6px;" width="225" height="225"></canvas>
+
+</td>
+</tr>
+</tbody>
+</table>
+
+<div style="width:90%;text-align:left;margin-top:2rem;">
+<span style="vertical-align:middle">自动标雷</span><input type="checkbox" id="af">
+<span style="float:right">夜间<input type="checkbox" id="night"></span>
+</div>
+
+<div style="width:90%;text-align:left;margin-top:1rem;">
+鼠标<a id="setm" href="javascript:" onclick="mouse2()">设置</a>&nbsp;&nbsp;
+触屏<a id="sett" href="javascript:" onclick="touch2()">设置</a>
+</div>
+
+<div id="_mouse" class="panel">
+左键：<input type="radio" name="mp1" value="0">按下时&nbsp;<input type="radio" name="mp1" value="1">弹起时
+&nbsp;&nbsp;
+右键：<input type="radio" name="mp2" value="0">按下时&nbsp;<input type="radio" name="mp2" value="1">弹起时
+</div>
+
+<div id="_touch" class="panel">
+触击效果：<input type="radio" name="tpn" value="0">标记&nbsp;<input type="radio" name="tpn" value="1">直开
+<div id="thint" style="display:none;margin-top:0.5rem;">
+直开模式下的标记方法：长按
+</div>
+<div id="topen" style="display:block;margin-top:0.5rem;">
+标记模式下的打开方法：<input type="radio" name="opn" value="0">长按&nbsp;<input type="radio" name="opn" value="1">快点三次
+</div>
+</div>
+
+<div id="mk">
+<div class="mk-t">正在生成无猜盘面…</div>
+<div class="mk-s">首次点击前需生成一张可纯推理通关的盘面，稍等片刻<br>点击任意处可跳过等待（该局恢复普通随机）</div>
+</div>
+
+<!-- 原站遗留元素：assets/js/game.js 的 start() 第一步就取 $("ss").href，后面还要写
+     $("nick").value 与 $("uid").innerHTML。这个离线副本当初只抓了游戏主体、没带站点外壳，
+     三个元素一缺就在初始化第一步抛 null 异常 —— 表现就是"打开扫雷点不动、根本没法玩"。
+     它们的原始用途（样式表切换 / 昵称 / 用户号）离线都用不到，补齐并隐藏即可。 -->
+<a id="ss" href="" style="display:none"></a>
+<input id="nick" type="hidden" value="">
+<span id="uid" style="display:none"></span>
+
+<script src="assets/js/images.js"></script>
+<script src="assets/js/game.js"></script>
+<script>
+shou = "收起";
+shez = "设置";
+mouse2 = fold("setm", "_mouse");
+touch2 = fold("sett", "_touch");
+af0 = 0;
+ny0 = 0;
+start();
+</script>
+</body>
+</html>
