@@ -93,9 +93,4 @@ powershell -ExecutionPolicy Bypass -File .\build.ps1 -SkipRedistCheck -NoZip
 
 本地完整离线包（含 WebView2 x64/x86 + 360cse）约 **494 MB**，未提交到 Git 仓库（GitHub 普通文件限制 100 MB）。需要时按上面的“完整离线安装包”步骤在本地构建，或从本地 `发布/` 目录取得。
 
-## 第三方组件
-
-- **Microsoft Edge WebView2 Runtime** — Microsoft，安装包内离线组件遵循 Microsoft 许可。
-- **360 极速浏览器（360cse）** — 360.cn，仅在系统没有现代浏览器时由安装器调用；仓库不包含该二进制。
-- **FontAwesome Free 7.3.1** — 图标字体，许可见 `Root/game/lib/fontawesome-free-7.3.1-web/LICENSE.txt` 与 `Root/game/breach/fontawesome-free-7.3.1-web/LICENSE.txt`。
-- 交火自带的 `LICENSE` / `THIRD_PARTY_NOTICES.md` 保留在 `Root/game/breach/`。
+## **FontAwesome Free 7.3.1** — 图标字体，许可见 `Root/game/lib/fontawesome-free-7.3.1-web/LICENSE.txt` 与 `Root/game/breach/fontawesome-free-7.3.1-web/LICENSE.txt`。
