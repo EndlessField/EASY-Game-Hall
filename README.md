@@ -46,10 +46,6 @@ EASY-Game-Hall/
 
 > 大厅是 32 位程序，在 32 位 Windows 原生运行，在 64 位 Windows 通过 WOW64 运行；不需要 `WebView2Loader.dll`。
 
-## 生成安装包
-
-仓库**不包含** `安装制作/redist/` 里的离线组件（WebView2 x64/x86 + 360cse，共约 491 MB），因为 GitHub 单文件限制 100 MB。
-
 ### 完整离线安装包
 
 1. 把以下文件放进 `安装制作/redist/`：
